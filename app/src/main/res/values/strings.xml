@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Auto Clicker</string>
-    <string name="accessibility_description">Auto Clicker uses this service to perform automatic taps and swipe gestures on your screen. No personal data is collected.</string>
+    <string name="accessibility_description">Auto Clicker uses accessibility features to perform automated taps, swipes, long presses, and gestures at user-defined screen coordinates. Enable this service to allow Auto Clicker to run your saved macros. No personal data is collected.</string>
+    <string name="notification_channel_name">AutoClicker Active</string>
+    <string name="notification_channel_desc">Shown while AutoClicker is running</string>
 </resources>

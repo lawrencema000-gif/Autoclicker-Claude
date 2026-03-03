@@ -2,220 +2,304 @@ package com.autoclicker.claude.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Path
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
-import com.autoclicker.claude.model.ClickMode
-import com.autoclicker.claude.model.ClickPoint
-import com.autoclicker.claude.model.ClickScript
-import com.autoclicker.claude.model.SwipeAction
+import com.autoclicker.claude.data.*
+import com.autoclicker.claude.overlay.FloatingToolbarManager
+import com.autoclicker.claude.overlay.PickOverlayManager
+import kotlinx.coroutines.*
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.max
+import kotlin.random.Random
 
 class AutoClickService : AccessibilityService() {
 
-    companion object {
-        var instance: AutoClickService? = null
-            private set
-        var isRunning = false
-            private set
-    }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var executionJob: Job? = null
+    private val paused = AtomicBoolean(false)
+    private var tapCount = 0
+    private var startTimeMs = 0L
 
-    private val handler = Handler(Looper.getMainLooper())
-    private var currentScript: ClickScript? = null
-    private var currentRepeat = 0
-    private var currentIndex = 0
-    private var isPaused = false
-    private var totalClicks = 0L
-    private var onClickCountUpdate: ((Long) -> Unit)? = null
-    private var onStatusUpdate: ((Boolean) -> Unit)? = null
+    private var pickOverlay: PickOverlayManager? = null
+    private var floatingToolbar: FloatingToolbarManager? = null
+    private var screenOffReceiver: BroadcastReceiver? = null
+    private var currentRules: ClickRule? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        instance = this
+        CommandBus.setServiceConnected(true)
+
+        pickOverlay = PickOverlayManager(this)
+        floatingToolbar = FloatingToolbarManager(this)
+
+        scope.launch {
+            CommandBus.commands.collect { cmd ->
+                when (cmd) {
+                    is TapCommand.StartProfile -> startProfile(cmd.profile)
+                    is TapCommand.QuickStart -> {
+                        val profile = TapProfile(
+                            name = "Quick Start",
+                            mode = cmd.mode,
+                            steps = cmd.points,
+                            intervalMs = cmd.settings.intervalMs,
+                            rules = ClickRule(
+                                maxTaps = if (cmd.settings.stopCondition == StopCondition.AFTER_TAPS) cmd.settings.stopValue else 0,
+                                maxDurationMs = if (cmd.settings.stopCondition == StopCondition.AFTER_SECONDS) cmd.settings.stopValue * 1000L else 0
+                            )
+                        )
+                        startProfile(profile)
+                    }
+                    is TapCommand.Stop -> stopExecution()
+                    is TapCommand.Pause -> pauseExecution()
+                    is TapCommand.Resume -> resumeExecution()
+                    is TapCommand.EnterPickMode -> pickOverlay?.show(cmd.multiPick)
+                    is TapCommand.ExitPickMode -> { /* handled by PickOverlayManager */ }
+                }
+            }
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    override fun onInterrupt() { stopExecution() }
 
-    override fun onInterrupt() {
-        stopClicking()
+    override fun onUnbind(intent: Intent?): Boolean {
+        stopExecution()
+        pickOverlay?.dismiss()
+        floatingToolbar?.dismiss()
+        CommandBus.setServiceConnected(false)
+        return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        stopClicking()
-        instance = null
+        stopExecution()
+        pickOverlay?.dismiss()
+        floatingToolbar?.dismiss()
+        CommandBus.setServiceConnected(false)
+        scope.cancel()
     }
 
-    fun setOnClickCountUpdate(listener: ((Long) -> Unit)?) {
-        onClickCountUpdate = listener
-    }
+    private fun startProfile(profile: TapProfile) {
+        stopExecution()
 
-    fun setOnStatusUpdate(listener: ((Boolean) -> Unit)?) {
-        onStatusUpdate = listener
-    }
+        tapCount = 0
+        startTimeMs = System.currentTimeMillis()
+        paused.set(false)
+        currentRules = profile.rules
 
-    fun startClicking(script: ClickScript) {
-        if (isRunning) return
-        currentScript = script
-        currentRepeat = 0
-        currentIndex = 0
-        totalClicks = 0
-        isRunning = true
-        isPaused = false
-        onStatusUpdate?.invoke(true)
-        executeNext()
-    }
+        CommandBus.setRunState(RunState.RUNNING)
+        CommandBus.updateStats(ExecutionStats(profileName = profile.name))
 
-    fun stopClicking() {
-        isRunning = false
-        isPaused = false
-        handler.removeCallbacksAndMessages(null)
-        onStatusUpdate?.invoke(false)
-    }
-
-    fun pauseClicking() {
-        isPaused = true
-        handler.removeCallbacksAndMessages(null)
-    }
-
-    fun resumeClicking() {
-        if (!isRunning) return
-        isPaused = false
-        executeNext()
-    }
-
-    fun getTotalClicks(): Long = totalClicks
-
-    private fun executeNext() {
-        if (!isRunning || isPaused) return
-        val script = currentScript ?: return
-
-        when (script.mode) {
-            ClickMode.SINGLE -> executeSingleMode(script)
-            ClickMode.MULTI -> executeMultiMode(script)
+        // Register screen off receiver
+        if (profile.rules.stopOnScreenOff) {
+            registerScreenOffReceiver()
         }
-    }
 
-    private fun executeSingleMode(script: ClickScript) {
-        if (script.clickPoints.isEmpty()) return
-        val point = script.clickPoints[0]
+        // Show floating toolbar
+        floatingToolbar?.show()
 
-        performClick(point.x, point.y, point.duration) {
-            totalClicks++
-            onClickCountUpdate?.invoke(totalClicks)
+        // Start foreground service
+        TapForegroundService.start(this, profile.name)
 
-            if (script.repeatCount > 0) {
-                currentRepeat++
-                if (currentRepeat >= script.repeatCount) {
-                    stopClicking()
-                    return@performClick
-                }
-            }
-
-            if (isRunning && !isPaused) {
-                handler.postDelayed({ executeNext() }, point.delay)
-            }
-        }
-    }
-
-    private fun executeMultiMode(script: ClickScript) {
-        val totalActions = script.clickPoints.size + script.swipeActions.size
-
-        if (totalActions == 0) return
-
-        if (currentIndex < script.clickPoints.size) {
-            val point = script.clickPoints[currentIndex]
-            performClick(point.x, point.y, point.duration) {
-                totalClicks++
-                onClickCountUpdate?.invoke(totalClicks)
-                currentIndex++
-
-                if (currentIndex >= totalActions) {
-                    currentIndex = 0
-                    if (script.repeatCount > 0) {
-                        currentRepeat++
-                        if (currentRepeat >= script.repeatCount) {
-                            stopClicking()
-                            return@performClick
-                        }
-                    }
+        executionJob = scope.launch {
+            try {
+                // Start delay
+                if (profile.rules.startDelayMs > 0) {
+                    delay(profile.rules.startDelayMs)
                 }
 
-                if (isRunning && !isPaused) {
-                    handler.postDelayed({ executeNext() }, point.delay)
-                }
-            }
-        } else {
-            val swipeIndex = currentIndex - script.clickPoints.size
-            if (swipeIndex < script.swipeActions.size) {
-                val swipe = script.swipeActions[swipeIndex]
-                performSwipe(swipe) {
-                    currentIndex++
-                    if (currentIndex >= totalActions) {
-                        currentIndex = 0
-                        if (script.repeatCount > 0) {
-                            currentRepeat++
-                            if (currentRepeat >= script.repeatCount) {
-                                stopClicking()
-                                return@performSwipe
+                val maxLoops = if (profile.loopCount <= 0) Int.MAX_VALUE else profile.loopCount
+
+                for (loop in 1..maxLoops) {
+                    if (!isActive) break
+
+                    for ((stepIdx, step) in profile.steps.withIndex()) {
+                        if (!isActive) break
+                        waitWhilePaused()
+                        if (shouldStop(profile.rules)) break
+
+                        // Per-step delay
+                        val stepDelay = computeDelay(step.delayBefore, profile.rules)
+                        if (stepDelay > 0) delay(stepDelay)
+
+                        // Execute action with repeat
+                        for (rep in 0 until max(1, step.repeatCount)) {
+                            if (!isActive || shouldStop(profile.rules)) break
+                            waitWhilePaused()
+
+                            when (step.action) {
+                                ActionType.TAP -> {
+                                    dispatchTap(step.x, step.y, step.holdDuration)
+                                    tapCount++
+                                }
+                                ActionType.SWIPE -> {
+                                    dispatchSwipe(step.x, step.y, step.swipeToX, step.swipeToY, step.swipeDuration)
+                                    tapCount++
+                                }
+                                ActionType.LONG_PRESS -> {
+                                    dispatchTap(step.x, step.y, step.holdDuration.coerceAtLeast(400L))
+                                    tapCount++
+                                }
+                                ActionType.DELAY -> {
+                                    delay(step.delayBefore)
+                                }
+                            }
+
+                            // Update stats
+                            CommandBus.updateStats(
+                                ExecutionStats(
+                                    totalTaps = tapCount,
+                                    elapsedMs = System.currentTimeMillis() - startTimeMs,
+                                    currentStep = stepIdx + 1,
+                                    currentLoop = loop,
+                                    profileName = profile.name
+                                )
+                            )
+                            floatingToolbar?.refresh()
+
+                            // Inter-repeat interval
+                            if (rep < step.repeatCount - 1) {
+                                delay(profile.intervalMs)
                             }
                         }
+
+                        // Inter-step interval
+                        if (stepIdx < profile.steps.size - 1) {
+                            delay(profile.intervalMs)
+                        }
                     }
 
-                    if (isRunning && !isPaused) {
-                        handler.postDelayed({ executeNext() }, swipe.delay)
+                    if (shouldStop(profile.rules)) break
+
+                    // Pause between loops
+                    if (loop < maxLoops && profile.rules.pauseBetweenLoops > 0) {
+                        delay(profile.rules.pauseBetweenLoops)
                     }
+                }
+            } finally {
+                stopExecution()
+            }
+        }
+    }
+
+    private fun stopExecution() {
+        executionJob?.cancel()
+        executionJob = null
+        paused.set(false)
+        currentRules = null
+
+        unregisterScreenOffReceiver()
+        floatingToolbar?.dismiss()
+        TapForegroundService.stop(this)
+
+        CommandBus.setRunState(RunState.IDLE)
+    }
+
+    private fun pauseExecution() {
+        paused.set(true)
+        CommandBus.setRunState(RunState.PAUSED)
+        floatingToolbar?.refresh()
+        TapForegroundService.updateState(this, CommandBus.stats.value.profileName, true)
+    }
+
+    private fun resumeExecution() {
+        paused.set(false)
+        CommandBus.setRunState(RunState.RUNNING)
+        floatingToolbar?.refresh()
+        TapForegroundService.updateState(this, CommandBus.stats.value.profileName, false)
+    }
+
+    private suspend fun waitWhilePaused() {
+        while (paused.get()) {
+            delay(100)
+        }
+    }
+
+    private fun shouldStop(rules: ClickRule): Boolean {
+        if (rules.maxTaps > 0 && tapCount >= rules.maxTaps) return true
+        if (rules.maxDurationMs > 0 && (System.currentTimeMillis() - startTimeMs) >= rules.maxDurationMs) return true
+        return false
+    }
+
+    private fun computeDelay(baseDelay: Long, rules: ClickRule): Long {
+        return if (rules.randomizeDelay) {
+            baseDelay + Random.nextLong(rules.randomDelayMin, rules.randomDelayMax + 1)
+        } else {
+            baseDelay
+        }
+    }
+
+    private suspend fun dispatchTap(x: Float, y: Float, durationMs: Long) {
+        val path = Path().apply { moveTo(x, y) }
+        val duration = durationMs.coerceAtLeast(1L)
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+            .build()
+        suspendCancellableCoroutine { cont ->
+            val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    if (cont.isActive) cont.resume(Unit) {}
+                }
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    if (cont.isActive) cont.resume(Unit) {}
+                }
+            }, null)
+            if (!dispatched && cont.isActive) {
+                cont.resume(Unit) {}
+            }
+        }
+    }
+
+    private suspend fun dispatchSwipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long) {
+        val path = Path().apply {
+            moveTo(x1, y1)
+            lineTo(x2, y2)
+        }
+        val duration = durationMs.coerceAtLeast(1L)
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+            .build()
+        suspendCancellableCoroutine { cont ->
+            val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    if (cont.isActive) cont.resume(Unit) {}
+                }
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    if (cont.isActive) cont.resume(Unit) {}
+                }
+            }, null)
+            if (!dispatched && cont.isActive) {
+                cont.resume(Unit) {}
+            }
+        }
+    }
+
+    private fun registerScreenOffReceiver() {
+        if (screenOffReceiver != null) return
+        screenOffReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                    stopExecution()
                 }
             }
         }
-    }
-
-    private fun performClick(x: Float, y: Float, duration: Long, onComplete: () -> Unit) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
-
-        val path = Path().apply { moveTo(x, y) }
-        val clickDuration = if (duration < 1) 1L else duration
-
-        val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, clickDuration))
-            .build()
-
-        dispatchGesture(gesture, object : GestureResultCallback() {
-            override fun onCompleted(gestureDescription: GestureDescription?) {
-                super.onCompleted(gestureDescription)
-                onComplete()
-            }
-
-            override fun onCancelled(gestureDescription: GestureDescription?) {
-                super.onCancelled(gestureDescription)
-                if (isRunning && !isPaused) onComplete()
-            }
-        }, handler)
-    }
-
-    private fun performSwipe(swipe: SwipeAction, onComplete: () -> Unit) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
-
-        val path = Path().apply {
-            moveTo(swipe.startX, swipe.startY)
-            lineTo(swipe.endX, swipe.endY)
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenOffReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(screenOffReceiver, filter)
         }
+    }
 
-        val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, swipe.duration))
-            .build()
-
-        dispatchGesture(gesture, object : GestureResultCallback() {
-            override fun onCompleted(gestureDescription: GestureDescription?) {
-                super.onCompleted(gestureDescription)
-                onComplete()
-            }
-
-            override fun onCancelled(gestureDescription: GestureDescription?) {
-                super.onCancelled(gestureDescription)
-                if (isRunning && !isPaused) onComplete()
-            }
-        }, handler)
+    private fun unregisterScreenOffReceiver() {
+        screenOffReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) {}
+        }
+        screenOffReceiver = null
     }
 }
