@@ -407,10 +407,10 @@ export default function Home() {
 
       <button style={{ ...S.primaryBtn, background: running ? '#F87171' : '#38BDF8', transition: 'background 0.3s' }}
         onClick={() => {
-          if (running) { stopAll(); }
+          if (running) { stopAll(); setCustomPoints([]); }
           else if (mode === 'pattern' && patternType === 'custom') {
-            // Custom pattern: enter overlay pick mode
-            setScreen('overlay'); setCustomPickMode(true)
+            // Custom pattern: clear old points and enter overlay pick mode
+            setCustomPoints([]); setScreen('overlay'); setCustomPickMode(true)
           }
           else if (mode === 'pattern') {
             // Preset pattern: generate points and show on overlay
@@ -563,7 +563,7 @@ export default function Home() {
             ) : (
               <button style={{ ...S.circleBtn, background: '#38BDF8' }} onClick={(e) => { e.stopPropagation(); setPaused(false) }}>▶</button>
             )}
-            <button style={{ ...S.circleBtn, background: '#F87171' }} onClick={(e) => { e.stopPropagation(); stopAll(); setScreen('main') }}>⏹</button>
+            <button style={{ ...S.circleBtn, background: '#F87171' }} onClick={(e) => { e.stopPropagation(); stopAll(); setCustomPoints([]); setScreen('main') }}>⏹</button>
           </div>
           <div style={{ color: '#8B95B0', fontSize: 10, textAlign: 'center', marginTop: 6 }}>Loop {loop} • Step 1/{targets.length || '?'}</div>
         </div>

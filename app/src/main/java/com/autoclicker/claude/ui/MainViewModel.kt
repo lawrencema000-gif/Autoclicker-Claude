@@ -168,6 +168,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun stopExecution() {
         CommandBus.send(TapCommand.Stop)
+        _customPatternPoints.value = emptyList()
     }
 
     fun startProfile(profile: TapProfile) {
