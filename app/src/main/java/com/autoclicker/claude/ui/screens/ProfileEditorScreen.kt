@@ -80,7 +80,11 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                     )
 
                     Text(
-                        "Mode: ${if (profile.mode == com.autoclicker.claude.data.ClickMode.SINGLE_POINT) "Single Point" else "Multi Point"}",
+                        "Mode: ${when (profile.mode) {
+                            com.autoclicker.claude.data.ClickMode.SINGLE_POINT -> "Single Point"
+                            com.autoclicker.claude.data.ClickMode.MULTI_POINT -> "Multi Point"
+                            com.autoclicker.claude.data.ClickMode.PATTERN_MODE -> "Pattern (${profile.patternConfig?.type?.name ?: "Circle"})"
+                        }}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -103,6 +107,37 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                             singleLine = true,
                             placeholder = { Text("∞") }
                         )
+                    }
+                }
+            }
+        }
+
+        // Pattern config section (for pattern mode profiles)
+        if (profile.mode == com.autoclicker.claude.data.ClickMode.PATTERN_MODE && profile.patternConfig != null) {
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Pattern Configuration", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Type: ${profile.patternConfig.type.name}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Points: ${profile.patternConfig.pointCount} | Radius: ${profile.patternConfig.radius.toInt()}px | Center: (${profile.patternConfig.centerX.toInt()}, ${profile.patternConfig.centerY.toInt()})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (profile.patternConfig.type == com.autoclicker.claude.data.PatternType.GRID) {
+                            Text(
+                                "Grid: ${profile.patternConfig.gridRows}x${profile.patternConfig.gridCols} | Spacing: ${profile.patternConfig.gridSpacing.toInt()}px",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -188,13 +223,14 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                                     ActionType.SWIPE -> "Swipe"
                                     ActionType.LONG_PRESS -> "Long Press"
                                     ActionType.DELAY -> "Delay"
+                                    ActionType.PATTERN -> "Pattern"
                                 },
                                 fontWeight = FontWeight.SemiBold,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
                                 when (step.action) {
-                                    ActionType.TAP, ActionType.LONG_PRESS ->
+                                    ActionType.TAP, ActionType.LONG_PRESS, ActionType.PATTERN ->
                                         "(${step.x.toInt()}, ${step.y.toInt()}) • ${step.delayBefore}ms delay • ${step.holdDuration}ms hold"
                                     ActionType.SWIPE ->
                                         "(${step.x.toInt()}, ${step.y.toInt()}) → (${step.swipeToX.toInt()}, ${step.swipeToY.toInt()}) • ${step.swipeDuration}ms"

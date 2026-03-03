@@ -6,7 +6,7 @@ const PHONE_W = 390
 const PHONE_H = 844
 
 export default function Home() {
-  const [screen, setScreen] = useState('onboarding') // onboarding, main, overlay, editor, settings
+  const [screen, setScreen] = useState('onboarding')
   const [tab, setTab] = useState(0)
   const [mode, setMode] = useState('single')
   const [running, setRunning] = useState(false)
@@ -17,16 +17,26 @@ export default function Home() {
   const [accessibilityEnabled, setAccessibilityEnabled] = useState(false)
   const [targets, setTargets] = useState([])
   const [profiles, setProfiles] = useState([])
-  const [settings, setSettings] = useState({ interval: 100, hold: 10, swipe: 350, stopCondition: 'never', stopValue: 0 })
+  const [settings, setSettings] = useState({
+    interval: 100, hold: 10, swipe: 350,
+    stopCondition: 'never', stopValue: 0,
+    speedMode: 'interval',
+    antiDetection: {
+      randomPositionOffset: false, positionOffsetRadius: 15,
+      intervalJitter: false, jitterPercent: 20,
+      humanizeHold: false, avoidRepetition: false, microPauses: false
+    }
+  })
   const [dragging, setDragging] = useState(null)
   const [floatingPos, setFloatingPos] = useState({ x: 5, y: 150 })
   const [pickMode, setPickMode] = useState(false)
-  const [currentTouch, setCurrentTouch] = useState(null)
+  const [patternType, setPatternType] = useState('circle')
   const timerRef = useRef(null)
   const elapsedRef = useRef(null)
 
   const stopAll = useCallback(() => {
-    setRunning(false); setPaused(false); if (timerRef.current) clearInterval(timerRef.current)
+    setRunning(false); setPaused(false)
+    if (timerRef.current) clearInterval(timerRef.current)
     if (elapsedRef.current) clearInterval(elapsedRef.current)
   }, [])
 
@@ -62,7 +72,6 @@ export default function Home() {
         <h2 style={{ color: '#E8ECF4', textAlign: 'center', margin: '0 0 4px' }}>Welcome to Auto Clicker</h2>
         <p style={{ color: '#8B95B0', textAlign: 'center', fontSize: 13, margin: '0 0 30px' }}>Complete these steps to get started</p>
 
-        {/* Step 1 */}
         <div style={{ ...S.card, background: accessibilityEnabled ? 'rgba(14,61,46,0.3)' : '#1A2035', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: accessibilityEnabled ? '#34D399' : '#38BDF8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0B0F19', fontWeight: 'bold', fontSize: 14 }}>
@@ -78,7 +87,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Step 2 */}
         <div style={{ ...S.card, background: '#1A2035' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#38BDF8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0B0F19', fontWeight: 'bold', fontSize: 14 }}>2</div>
@@ -101,21 +109,41 @@ export default function Home() {
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
       <h2 style={{ color: '#E8ECF4', margin: '0 0 16px', fontSize: 22 }}>Auto Clicker</h2>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        {[['1-Point', 'Single tap', '👆', 'single'], ['Multi-Point', 'Sequence', '📱', 'multi']].map(([t, d, ic, m]) => (
+      {/* Mode selection - 3 cards */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        {[['1-Point', 'Single tap', '👆', 'single'], ['Multi-Point', 'Sequence', '📱', 'multi'], ['Pattern', 'Shapes', '✨', 'pattern']].map(([t, d, ic, m]) => (
           <div key={m} onClick={() => setMode(m)} style={{
-            flex: 1, padding: 16, borderRadius: 16, cursor: 'pointer', textAlign: 'center',
+            flex: 1, padding: 14, borderRadius: 16, cursor: 'pointer', textAlign: 'center',
             background: mode === m ? '#0E3A5C' : '#1A2035',
             border: mode === m ? 'none' : '1px solid #2A3250',
             transition: 'all 0.2s'
           }}>
-            <div style={{ fontSize: 28, marginBottom: 8, filter: mode === m ? 'none' : 'grayscale(1) opacity(0.5)' }}>{ic}</div>
-            <div style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 14 }}>{t}</div>
-            <div style={{ color: '#8B95B0', fontSize: 11 }}>{d}</div>
+            <div style={{ fontSize: 24, marginBottom: 6, filter: mode === m ? 'none' : 'grayscale(1) opacity(0.5)' }}>{ic}</div>
+            <div style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 12 }}>{t}</div>
+            <div style={{ color: '#8B95B0', fontSize: 10 }}>{d}</div>
           </div>
         ))}
       </div>
 
+      {/* Pattern type selector */}
+      {mode === 'pattern' && (
+        <div style={{ ...S.card, background: '#1A2035', marginBottom: 12 }}>
+          <div style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 13, marginBottom: 10 }}>Pattern Type</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {['Circle', 'Zigzag', 'Grid', 'Spiral', 'Diamond', 'Random'].map(p => (
+              <button key={p} onClick={() => setPatternType(p.toLowerCase())}
+                style={{
+                  padding: '6px 12px', borderRadius: 12, border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  background: patternType === p.toLowerCase() ? '#38BDF8' : 'rgba(56,189,248,0.15)',
+                  color: patternType === p.toLowerCase() ? '#0B0F19' : '#38BDF8'
+                }}>{p}</button>
+            ))}
+          </div>
+          <div style={{ color: '#8B95B0', fontSize: 11, marginTop: 8 }}>Points: 8 | Radius: 100px</div>
+        </div>
+      )}
+
+      {/* Live stats */}
       {running && (
         <div style={{ ...S.card, background: '#1A2035', display: 'flex', justifyContent: 'space-around', padding: 16 }}>
           {[['Taps', clickCount], ['Time', formatTime(elapsed)], ['Loop', loop]].map(([l, v]) => (
@@ -130,7 +158,11 @@ export default function Home() {
       <div style={{ flex: 1 }} />
 
       <button style={{ ...S.primaryBtn, background: running ? '#F87171' : '#38BDF8', transition: 'background 0.3s' }}
-        onClick={() => { if (running) { stopAll(); } else { setScreen('overlay'); setPickMode(true); setTargets([]) } }}>
+        onClick={() => {
+          if (running) { stopAll(); }
+          else if (mode === 'pattern') { startClicking(); setScreen('overlay'); setTargets([]); }
+          else { setScreen('overlay'); setPickMode(true); setTargets([]) }
+        }}>
         <span style={{ fontSize: 20, marginRight: 8 }}>{running ? '⏹' : '▶'}</span>
         {running ? 'STOP' : 'START'}
       </button>
@@ -146,7 +178,6 @@ export default function Home() {
   // ===== PICK / OVERLAY =====
   const renderOverlay = () => (
     <div style={{ position: 'relative', width: '100%', height: '100%', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', overflow: 'hidden' }}>
-      {/* Background items */}
       <div style={{ padding: 30, opacity: 0.2 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 20 }}>
           {[...Array(9)].map((_, i) => <div key={i} style={{ background: '#ffffff11', borderRadius: 10, height: 70 }} />)}
@@ -155,7 +186,6 @@ export default function Home() {
 
       {pickMode && (
         <>
-          {/* Pick overlay */}
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect()
@@ -197,7 +227,7 @@ export default function Home() {
             {!paused ? (
               <button style={{ ...S.circleBtn, background: '#34D399' }} onClick={(e) => { e.stopPropagation(); setPaused(true); clearInterval(timerRef.current); clearInterval(elapsedRef.current) }}>⏸</button>
             ) : (
-              <button style={{ ...S.circleBtn, background: '#38BDF8' }} onClick={(e) => { e.stopPropagation(); setPaused(false); /* simplified resume */ }}>▶</button>
+              <button style={{ ...S.circleBtn, background: '#38BDF8' }} onClick={(e) => { e.stopPropagation(); setPaused(false) }}>▶</button>
             )}
             <button style={{ ...S.circleBtn, background: '#F87171' }} onClick={(e) => { e.stopPropagation(); stopAll(); setScreen('main') }}>⏹</button>
           </div>
@@ -233,39 +263,149 @@ export default function Home() {
   )
 
   // ===== SETTINGS =====
-  const renderSettings = () => (
-    <div style={{ padding: 20, height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
-      <h2 style={{ color: '#E8ECF4', margin: '0 0 16px', fontSize: 20 }}>Settings</h2>
+  const speedPresets = [
+    { label: 'Turbo', ms: 10 }, { label: 'Fast', ms: 100 }, { label: 'Normal', ms: 500 },
+    { label: 'Slow', ms: 2000 }, { label: 'Crawl', ms: 30000 }, { label: 'Hourly', ms: 3600000 }
+  ]
+  const fmtMs = (ms) => ms < 1000 ? `${ms}ms` : ms < 60000 ? `${ms/1000}s` : ms < 3600000 ? `${ms/60000}min` : `${ms/3600000}hr`
 
+  const renderSettings = () => (
+    <div style={{ padding: 16, height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
+      <h2 style={{ color: '#E8ECF4', margin: '0 0 4px', fontSize: 20 }}>Settings</h2>
+      <div style={{ color: '#38BDF8', fontSize: 11, marginBottom: 12 }}>Applied to new scripts</div>
+
+      {/* Speed Presets */}
+      <div style={{ color: '#8B95B0', fontSize: 10, fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>SPEED PRESETS</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 12 }}>
+        {speedPresets.map(p => (
+          <button key={p.label} onClick={() => setSettings(s => ({ ...s, interval: p.ms }))}
+            style={{
+              padding: '8px 4px', borderRadius: 10, cursor: 'pointer', textAlign: 'center',
+              border: settings.interval === p.ms ? '1px solid #38BDF8' : '1px solid #2A3250',
+              background: settings.interval === p.ms ? '#0E3A5C' : '#1A2035',
+              color: settings.interval === p.ms ? '#38BDF8' : '#E8ECF4'
+            }}>
+            <div style={{ fontWeight: 600, fontSize: 12 }}>{p.label}</div>
+            <div style={{ fontSize: 10, opacity: 0.7 }}>{fmtMs(p.ms)}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Main settings */}
       <div style={{ ...S.card, background: '#1A2035', marginBottom: 12 }}>
-        <div style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 13, marginBottom: 14 }}>Default Values</div>
-        {[['Tap Interval', 'interval', 'ms'], ['Tap & Hold Duration', 'hold', 'ms'], ['Swipe Duration', 'swipe', 'ms']].map(([label, key, unit]) => (
-          <div key={key} style={{ marginBottom: 12 }}>
-            <div style={{ color: '#8B95B0', fontSize: 11, marginBottom: 4 }}>{label}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input style={S.input} type="number" value={settings[key]} onChange={e => setSettings(s => ({ ...s, [key]: +e.target.value }))} />
-              <span style={{ background: '#0E3A5C', color: '#38BDF8', padding: '4px 10px', borderRadius: 8, fontSize: 11 }}>{unit}</span>
+        {/* Speed mode toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+          <span style={{ color: '#8B95B0', fontSize: 13, marginRight: 4 }}>⚡</span>
+          <span style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 13, flex: 1 }}>Speed Mode</span>
+          <div style={{ display: 'flex' }}>
+            {['interval', 'rate'].map(m => (
+              <button key={m} onClick={() => setSettings(s => ({ ...s, speedMode: m }))}
+                style={{
+                  padding: '4px 12px', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  background: settings.speedMode === m ? '#38BDF8' : 'rgba(56,189,248,0.15)',
+                  color: settings.speedMode === m ? '#0B0F19' : '#38BDF8',
+                  borderRadius: m === 'interval' ? '8px 0 0 8px' : '0 8px 8px 0'
+                }}>{m.charAt(0).toUpperCase() + m.slice(1)}</button>
+            ))}
+          </div>
+        </div>
+
+        {[['⏱', 'Interval', 'interval', 'ms'], ['👆', 'Tap & Hold Duration', 'hold', 'ms'], ['👉', 'Swipe Duration', 'swipe', 'ms']].map(([icon, label, key, unit]) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ color: '#8B95B0', fontSize: 13, marginRight: 8 }}>{icon}</span>
+            <span style={{ color: '#E8ECF4', fontSize: 12, fontWeight: 500, flex: 1 }}>{label}</span>
+            <input style={{ ...S.input, width: 80, flex: 'none', textAlign: 'right' }} type="number" value={settings[key]} onChange={e => setSettings(s => ({ ...s, [key]: +e.target.value }))} />
+            <span style={{ background: '#0E3A5C', color: '#38BDF8', padding: '3px 8px', borderRadius: 6, fontSize: 10, marginLeft: 6 }}>{unit}</span>
+          </div>
+        ))}
+
+        {/* Stop condition */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ color: '#8B95B0', fontSize: 13, marginRight: 8 }}>⏹</span>
+          <span style={{ color: '#E8ECF4', fontSize: 12, fontWeight: 500, flex: 1 }}>Stop After</span>
+          <select style={{ ...S.input, width: 120, flex: 'none' }}
+            value={settings.stopCondition}
+            onChange={e => setSettings(s => ({ ...s, stopCondition: e.target.value }))}>
+            <option value="never">Never Stop</option>
+            <option value="taps">After Taps</option>
+            <option value="time">After Time</option>
+            <option value="loops">After Loops</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Tap Randomization */}
+      <div style={{ color: '#8B95B0', fontSize: 10, fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>TAP RANDOMIZATION</div>
+      <div style={{ ...S.card, background: '#1A2035', marginBottom: 12 }}>
+        {[
+          { icon: '🎯', label: 'Random Position Offset', desc: 'Slightly shifts each tap to avoid detection', key: 'randomPositionOffset' },
+          { icon: '🔀', label: 'Interval Jitter', desc: 'Varies timing between taps', key: 'intervalJitter' },
+          { icon: '🤲', label: 'Humanize Hold Duration', desc: 'Varies how long each tap is held', key: 'humanizeHold' },
+          { icon: '🚫', label: 'Avoid Exact Repetition', desc: 'No two taps hit the same pixel', key: 'avoidRepetition' },
+          { icon: '☕', label: 'Random Micro-Pauses', desc: 'Simulates human distraction', key: 'microPauses' }
+        ].map((item, i) => (
+          <div key={item.key}>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '6px 0' }}>
+              <span style={{ fontSize: 14, marginRight: 8 }}>{item.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#E8ECF4', fontSize: 12, fontWeight: 500 }}>{item.label}</div>
+                <div style={{ color: '#8B95B0', fontSize: 10 }}>{item.desc}</div>
+              </div>
+              <div onClick={() => setSettings(s => ({
+                ...s,
+                antiDetection: { ...s.antiDetection, [item.key]: !s.antiDetection[item.key] }
+              }))}
+                style={{
+                  width: 40, height: 22, borderRadius: 11, cursor: 'pointer', position: 'relative', transition: 'background 0.2s',
+                  background: settings.antiDetection[item.key] ? '#38BDF8' : '#2A3250'
+                }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, transition: 'left 0.2s',
+                  left: settings.antiDetection[item.key] ? 20 : 2
+                }} />
+              </div>
             </div>
+            {/* Slider for offset radius */}
+            {item.key === 'randomPositionOffset' && settings.antiDetection.randomPositionOffset && (
+              <div style={{ display: 'flex', alignItems: 'center', padding: '2px 0 6px 26px' }}>
+                <span style={{ color: '#8B95B0', fontSize: 10, width: 70 }}>Offset radius</span>
+                <input type="range" min="1" max="50" value={settings.antiDetection.positionOffsetRadius}
+                  onChange={e => setSettings(s => ({ ...s, antiDetection: { ...s.antiDetection, positionOffsetRadius: +e.target.value } }))}
+                  style={{ flex: 1, accentColor: '#38BDF8' }} />
+                <span style={{ color: '#38BDF8', fontSize: 10, width: 36, textAlign: 'right' }}>{settings.antiDetection.positionOffsetRadius}px</span>
+              </div>
+            )}
+            {/* Slider for jitter percent */}
+            {item.key === 'intervalJitter' && settings.antiDetection.intervalJitter && (
+              <div style={{ display: 'flex', alignItems: 'center', padding: '2px 0 6px 26px' }}>
+                <span style={{ color: '#8B95B0', fontSize: 10, width: 70 }}>Jitter amount</span>
+                <input type="range" min="5" max="50" value={settings.antiDetection.jitterPercent}
+                  onChange={e => setSettings(s => ({ ...s, antiDetection: { ...s.antiDetection, jitterPercent: +e.target.value } }))}
+                  style={{ flex: 1, accentColor: '#38BDF8' }} />
+                <span style={{ color: '#38BDF8', fontSize: 10, width: 28, textAlign: 'right' }}>{settings.antiDetection.jitterPercent}%</span>
+              </div>
+            )}
+            {i < 4 && <div style={{ height: 1, background: '#2A325040', margin: '4px 0' }} />}
           </div>
         ))}
       </div>
 
       {/* Accessibility card */}
-      <div style={{ ...S.card, background: accessibilityEnabled ? '#1A2035' : '#3D1515', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 20 }}>{accessibilityEnabled ? '♿' : '⚠'}</span>
+      <div style={{ ...S.card, background: accessibilityEnabled ? '#1A2035' : '#3D1515', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 18 }}>{accessibilityEnabled ? '♿' : '⚠'}</span>
         <div style={{ flex: 1 }}>
-          <div style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 13 }}>Accessibility Service</div>
-          <div style={{ color: accessibilityEnabled ? '#34D399' : '#F87171', fontSize: 11 }}>{accessibilityEnabled ? 'Enabled' : 'Disabled'}</div>
+          <div style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 12 }}>Accessibility Service</div>
+          <div style={{ color: accessibilityEnabled ? '#34D399' : '#F87171', fontSize: 10 }}>{accessibilityEnabled ? 'Enabled' : 'Disabled'}</div>
         </div>
         <button style={S.tonalBtn} onClick={() => setAccessibilityEnabled(true)}>Settings</button>
       </div>
 
       {/* Battery card */}
-      <div style={{ ...S.card, background: '#1A2035', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 20 }}>🔋</span>
+      <div style={{ ...S.card, background: '#1A2035', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <span style={{ fontSize: 18 }}>🔋</span>
         <div style={{ flex: 1 }}>
-          <div style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 13 }}>Battery Optimization</div>
-          <div style={{ color: '#8B95B0', fontSize: 11 }}>Disable to prevent stopping</div>
+          <div style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 12 }}>Battery Optimization</div>
+          <div style={{ color: '#8B95B0', fontSize: 10 }}>Disable to prevent stopping</div>
         </div>
         <button style={S.tonalBtn}>Optimize</button>
       </div>
@@ -281,9 +421,7 @@ export default function Home() {
         {screen === 'onboarding' ? 'Onboarding' : screen === 'overlay' ? 'Overlay Mode — drag targets & toolbar' : ['Clicker', 'Scripts', 'Settings'][tab]}
       </p>
 
-      {/* Phone */}
       <div style={{ width: PHONE_W, height: PHONE_H, borderRadius: 44, border: '3px solid #2A3250', overflow: 'hidden', background: '#0B0F19', position: 'relative', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
-        {/* Status bar */}
         <div style={{ height: 50, background: '#0B0F19', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', fontSize: 12, color: '#8B95B0' }}>
           <span>12:00</span><span>⚡ 85%</span>
         </div>
@@ -296,7 +434,6 @@ export default function Home() {
           {screen === 'overlay' && renderOverlay()}
         </div>
 
-        {/* Bottom nav */}
         {showTabs && (
           <div style={{ height: 60, background: '#131825', display: 'flex', borderTop: '1px solid #2A3250' }}>
             {[['👆', 'Clicker'], ['📄', 'Scripts'], ['⚙', 'Settings']].map(([ic, label], i) => (

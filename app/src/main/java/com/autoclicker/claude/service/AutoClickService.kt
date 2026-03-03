@@ -12,10 +12,11 @@ import android.view.accessibility.AccessibilityEvent
 import com.autoclicker.claude.data.*
 import com.autoclicker.claude.overlay.FloatingToolbarManager
 import com.autoclicker.claude.overlay.PickOverlayManager
+import com.autoclicker.claude.util.AntiDetection
+import com.autoclicker.claude.util.PatternGenerator
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
-import kotlin.random.Random
 
 class AutoClickService : AccessibilityService() {
 
@@ -24,11 +25,12 @@ class AutoClickService : AccessibilityService() {
     private val paused = AtomicBoolean(false)
     private var tapCount = 0
     private var startTimeMs = 0L
+    private var lastTapX = -1f
+    private var lastTapY = -1f
 
     private var pickOverlay: PickOverlayManager? = null
     private var floatingToolbar: FloatingToolbarManager? = null
     private var screenOffReceiver: BroadcastReceiver? = null
-    private var currentRules: ClickRule? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -47,6 +49,7 @@ class AutoClickService : AccessibilityService() {
                             mode = cmd.mode,
                             steps = cmd.points,
                             intervalMs = cmd.settings.intervalMs,
+                            antiDetection = cmd.settings.antiDetection,
                             rules = ClickRule(
                                 maxTaps = if (cmd.settings.stopCondition == StopCondition.AFTER_TAPS) cmd.settings.stopValue else 0,
                                 maxDurationMs = if (cmd.settings.stopCondition == StopCondition.AFTER_SECONDS) cmd.settings.stopValue * 1000L else 0
@@ -90,95 +93,128 @@ class AutoClickService : AccessibilityService() {
         tapCount = 0
         startTimeMs = System.currentTimeMillis()
         paused.set(false)
-        currentRules = profile.rules
+        lastTapX = -1f
+        lastTapY = -1f
+
+        val anti = profile.antiDetection
+
+        // Generate pattern steps if pattern mode
+        val steps = if (profile.mode == ClickMode.PATTERN_MODE && profile.patternConfig != null) {
+            PatternGenerator.generate(profile.patternConfig, profile.intervalMs, profile.rules.let {
+                profile.intervalMs // use interval as hold fallback
+            }).map { it.copy(holdDuration = 50L) }
+        } else {
+            profile.steps
+        }
+
+        val effectiveProfile = profile.copy(steps = steps)
 
         CommandBus.setRunState(RunState.RUNNING)
         CommandBus.updateStats(ExecutionStats(profileName = profile.name))
 
-        // Register screen off receiver
         if (profile.rules.stopOnScreenOff) {
             registerScreenOffReceiver()
         }
 
-        // Show floating toolbar
         floatingToolbar?.show()
-
-        // Start foreground service
         TapForegroundService.start(this, profile.name)
 
         executionJob = scope.launch {
             try {
-                // Start delay
-                if (profile.rules.startDelayMs > 0) {
-                    delay(profile.rules.startDelayMs)
+                if (effectiveProfile.rules.startDelayMs > 0) {
+                    delay(effectiveProfile.rules.startDelayMs)
                 }
 
-                val maxLoops = if (profile.loopCount <= 0) Int.MAX_VALUE else profile.loopCount
+                val maxLoops = when {
+                    effectiveProfile.rules.maxLoops > 0 -> effectiveProfile.rules.maxLoops
+                    effectiveProfile.loopCount > 0 -> effectiveProfile.loopCount
+                    else -> Int.MAX_VALUE
+                }
 
                 for (loop in 1..maxLoops) {
                     if (!isActive) break
 
-                    for ((stepIdx, step) in profile.steps.withIndex()) {
+                    for ((stepIdx, step) in effectiveProfile.steps.withIndex()) {
                         if (!isActive) break
                         waitWhilePaused()
-                        if (shouldStop(profile.rules)) break
+                        if (shouldStop(effectiveProfile.rules)) break
 
-                        // Per-step delay
-                        val stepDelay = computeDelay(step.delayBefore, profile.rules)
-                        if (stepDelay > 0) delay(stepDelay)
+                        // Compute delay with anti-detection jitter
+                        val baseDelay = computeDelay(step.delayBefore, effectiveProfile.rules)
+                        val jitteredDelay = AntiDetection.jitterInterval(baseDelay, anti)
+                        if (jitteredDelay > 0) delay(jitteredDelay)
 
-                        // Execute action with repeat
+                        // Micro-pause for human simulation
+                        if (AntiDetection.shouldMicroPause(anti)) {
+                            delay(AntiDetection.getMicroPauseDuration(anti))
+                        }
+
                         for (rep in 0 until max(1, step.repeatCount)) {
-                            if (!isActive || shouldStop(profile.rules)) break
+                            if (!isActive || shouldStop(effectiveProfile.rules)) break
                             waitWhilePaused()
 
                             when (step.action) {
                                 ActionType.TAP -> {
-                                    dispatchTap(step.x, step.y, step.holdDuration)
+                                    var (tx, ty) = AntiDetection.randomizePosition(step.x, step.y, anti)
+                                    val (fx, fy) = AntiDetection.avoidRepetition(tx, ty, lastTapX, lastTapY, anti)
+                                    tx = fx; ty = fy
+                                    val hold = AntiDetection.humanizeHold(step.holdDuration, anti)
+                                    dispatchTap(tx, ty, hold)
+                                    lastTapX = tx; lastTapY = ty
                                     tapCount++
                                 }
                                 ActionType.SWIPE -> {
-                                    dispatchSwipe(step.x, step.y, step.swipeToX, step.swipeToY, step.swipeDuration)
+                                    val (sx, sy) = AntiDetection.randomizePosition(step.x, step.y, anti)
+                                    val (ex, ey) = AntiDetection.randomizePosition(step.swipeToX, step.swipeToY, anti)
+                                    dispatchSwipe(sx, sy, ex, ey, step.swipeDuration)
                                     tapCount++
                                 }
                                 ActionType.LONG_PRESS -> {
-                                    dispatchTap(step.x, step.y, step.holdDuration.coerceAtLeast(400L))
+                                    val (lx, ly) = AntiDetection.randomizePosition(step.x, step.y, anti)
+                                    val hold = AntiDetection.humanizeHold(step.holdDuration.coerceAtLeast(400L), anti)
+                                    dispatchTap(lx, ly, hold)
+                                    lastTapX = lx; lastTapY = ly
                                     tapCount++
                                 }
                                 ActionType.DELAY -> {
-                                    delay(step.delayBefore)
+                                    delay(AntiDetection.jitterInterval(step.delayBefore, anti))
+                                }
+                                ActionType.PATTERN -> {
+                                    // Pattern steps are pre-expanded, treated as TAP
+                                    val (px, py) = AntiDetection.randomizePosition(step.x, step.y, anti)
+                                    val hold = AntiDetection.humanizeHold(step.holdDuration, anti)
+                                    dispatchTap(px, py, hold)
+                                    tapCount++
                                 }
                             }
 
-                            // Update stats
                             CommandBus.updateStats(
                                 ExecutionStats(
                                     totalTaps = tapCount,
                                     elapsedMs = System.currentTimeMillis() - startTimeMs,
                                     currentStep = stepIdx + 1,
                                     currentLoop = loop,
-                                    profileName = profile.name
+                                    profileName = effectiveProfile.name
                                 )
                             )
                             floatingToolbar?.refresh()
 
-                            // Inter-repeat interval
                             if (rep < step.repeatCount - 1) {
-                                delay(profile.intervalMs)
+                                val interRepeat = AntiDetection.jitterInterval(effectiveProfile.intervalMs, anti)
+                                delay(interRepeat)
                             }
                         }
 
-                        // Inter-step interval
-                        if (stepIdx < profile.steps.size - 1) {
-                            delay(profile.intervalMs)
+                        if (stepIdx < effectiveProfile.steps.size - 1) {
+                            val interStep = AntiDetection.jitterInterval(effectiveProfile.intervalMs, anti)
+                            delay(interStep)
                         }
                     }
 
-                    if (shouldStop(profile.rules)) break
+                    if (shouldStop(effectiveProfile.rules)) break
 
-                    // Pause between loops
-                    if (loop < maxLoops && profile.rules.pauseBetweenLoops > 0) {
-                        delay(profile.rules.pauseBetweenLoops)
+                    if (loop < maxLoops && effectiveProfile.rules.pauseBetweenLoops > 0) {
+                        delay(effectiveProfile.rules.pauseBetweenLoops)
                     }
                 }
             } finally {
@@ -191,7 +227,6 @@ class AutoClickService : AccessibilityService() {
         executionJob?.cancel()
         executionJob = null
         paused.set(false)
-        currentRules = null
 
         unregisterScreenOffReceiver()
         floatingToolbar?.dismiss()
@@ -215,9 +250,7 @@ class AutoClickService : AccessibilityService() {
     }
 
     private suspend fun waitWhilePaused() {
-        while (paused.get()) {
-            delay(100)
-        }
+        while (paused.get()) { delay(100) }
     }
 
     private fun shouldStop(rules: ClickRule): Boolean {
@@ -228,7 +261,7 @@ class AutoClickService : AccessibilityService() {
 
     private fun computeDelay(baseDelay: Long, rules: ClickRule): Long {
         return if (rules.randomizeDelay) {
-            baseDelay + Random.nextLong(rules.randomDelayMin, rules.randomDelayMax + 1)
+            baseDelay + kotlin.random.Random.nextLong(rules.randomDelayMin, rules.randomDelayMax + 1)
         } else {
             baseDelay
         }
@@ -236,56 +269,37 @@ class AutoClickService : AccessibilityService() {
 
     private suspend fun dispatchTap(x: Float, y: Float, durationMs: Long) {
         val path = Path().apply { moveTo(x, y) }
-        val duration = durationMs.coerceAtLeast(1L)
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+            .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs.coerceAtLeast(1L)))
             .build()
         suspendCancellableCoroutine { cont ->
             val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) {
-                    if (cont.isActive) cont.resume(Unit) {}
-                }
-                override fun onCancelled(gestureDescription: GestureDescription?) {
-                    if (cont.isActive) cont.resume(Unit) {}
-                }
+                override fun onCompleted(g: GestureDescription?) { if (cont.isActive) cont.resume(Unit) {} }
+                override fun onCancelled(g: GestureDescription?) { if (cont.isActive) cont.resume(Unit) {} }
             }, null)
-            if (!dispatched && cont.isActive) {
-                cont.resume(Unit) {}
-            }
+            if (!dispatched && cont.isActive) cont.resume(Unit) {}
         }
     }
 
     private suspend fun dispatchSwipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long) {
-        val path = Path().apply {
-            moveTo(x1, y1)
-            lineTo(x2, y2)
-        }
-        val duration = durationMs.coerceAtLeast(1L)
+        val path = Path().apply { moveTo(x1, y1); lineTo(x2, y2) }
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+            .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs.coerceAtLeast(1L)))
             .build()
         suspendCancellableCoroutine { cont ->
             val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) {
-                    if (cont.isActive) cont.resume(Unit) {}
-                }
-                override fun onCancelled(gestureDescription: GestureDescription?) {
-                    if (cont.isActive) cont.resume(Unit) {}
-                }
+                override fun onCompleted(g: GestureDescription?) { if (cont.isActive) cont.resume(Unit) {} }
+                override fun onCancelled(g: GestureDescription?) { if (cont.isActive) cont.resume(Unit) {} }
             }, null)
-            if (!dispatched && cont.isActive) {
-                cont.resume(Unit) {}
-            }
+            if (!dispatched && cont.isActive) cont.resume(Unit) {}
         }
     }
 
     private fun registerScreenOffReceiver() {
         if (screenOffReceiver != null) return
         screenOffReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == Intent.ACTION_SCREEN_OFF) {
-                    stopExecution()
-                }
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                if (intent?.action == Intent.ACTION_SCREEN_OFF) stopExecution()
             }
         }
         val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
@@ -297,9 +311,7 @@ class AutoClickService : AccessibilityService() {
     }
 
     private fun unregisterScreenOffReceiver() {
-        screenOffReceiver?.let {
-            try { unregisterReceiver(it) } catch (_: Exception) {}
-        }
+        screenOffReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) {} }
         screenOffReceiver = null
     }
 }

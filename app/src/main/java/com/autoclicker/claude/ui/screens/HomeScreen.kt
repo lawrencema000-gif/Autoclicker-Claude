@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.AdsClick
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,6 +62,70 @@ fun HomeScreen(vm: MainViewModel) {
                 onClick = { vm.setSelectedMode(ClickMode.MULTI_POINT) },
                 modifier = Modifier.weight(1f)
             )
+            ModeCard(
+                title = "Pattern",
+                description = "Shapes",
+                icon = Icons.Default.AutoAwesome,
+                selected = selectedMode == ClickMode.PATTERN_MODE,
+                onClick = { vm.setSelectedMode(ClickMode.PATTERN_MODE) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // Pattern type selector (shown when pattern mode selected)
+        if (selectedMode == ClickMode.PATTERN_MODE) {
+            val patternConfig by vm.patternConfig.collectAsState()
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Pattern Type", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            com.autoclicker.claude.data.PatternType.CIRCLE to "Circle",
+                            com.autoclicker.claude.data.PatternType.ZIGZAG to "Zigzag",
+                            com.autoclicker.claude.data.PatternType.GRID to "Grid"
+                        ).forEach { (type, label) ->
+                            FilterChip(
+                                selected = patternConfig.type == type,
+                                onClick = { vm.setPatternType(type) },
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            com.autoclicker.claude.data.PatternType.SPIRAL to "Spiral",
+                            com.autoclicker.claude.data.PatternType.DIAMOND to "Diamond",
+                            com.autoclicker.claude.data.PatternType.RANDOM_AREA to "Random"
+                        ).forEach { (type, label) ->
+                            FilterChip(
+                                selected = patternConfig.type == type,
+                                onClick = { vm.setPatternType(type) },
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    Text(
+                        "Points: ${patternConfig.pointCount} | Radius: ${patternConfig.radius.toInt()}px",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
 
         // Live stats (when running)
