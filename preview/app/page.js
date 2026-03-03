@@ -14,6 +14,7 @@ export default function Home() {
   const [clickCount, setClickCount] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const [loop, setLoop] = useState(1)
+  const [currentStep, setCurrentStep] = useState(0)
   const [accessibilityEnabled, setAccessibilityEnabled] = useState(false)
   const [targets, setTargets] = useState([])
   const [profiles, setProfiles] = useState([])
@@ -41,19 +42,29 @@ export default function Home() {
   const [customPickMode, setCustomPickMode] = useState(false)
   const timerRef = useRef(null)
   const elapsedRef = useRef(null)
+  const currentStepRef = useRef(0)
+  const targetCountRef = useRef(1)
   const randomSeedRef = useRef(Date.now())
 
   const stopAll = useCallback(() => {
-    setRunning(false); setPaused(false)
+    setRunning(false); setPaused(false); setCurrentStep(0)
+    currentStepRef.current = 0
     if (timerRef.current) clearInterval(timerRef.current)
     if (elapsedRef.current) clearInterval(elapsedRef.current)
   }, [])
 
-  const startClicking = useCallback(() => {
-    setRunning(true); setPaused(false); setClickCount(0); setElapsed(0); setLoop(1)
-    const startTime = Date.now()
-    timerRef.current = window.setInterval(() => setClickCount(c => c + 1), settings.interval)
-    elapsedRef.current = window.setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000)
+  const startClicking = useCallback((numTargets) => {
+    const count = numTargets || 1
+    targetCountRef.current = count
+    setRunning(true); setPaused(false); setClickCount(0); setElapsed(0); setLoop(1); setCurrentStep(0)
+    currentStepRef.current = 0
+    timerRef.current = window.setInterval(() => {
+      setClickCount(c => c + 1)
+      currentStepRef.current += 1
+      if (currentStepRef.current >= count) { currentStepRef.current = 0; setLoop(l => l + 1) }
+      setCurrentStep(currentStepRef.current)
+    }, settings.interval)
+    elapsedRef.current = window.setInterval(() => setElapsed(e => e + 1), 1000)
   }, [settings.interval])
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); if (elapsedRef.current) clearInterval(elapsedRef.current) }, [])
@@ -428,7 +439,7 @@ export default function Home() {
               id: Date.now() + i
             }))
             setTargets(overlayTargets)
-            startClicking()
+            startClicking(overlayTargets.length)
             setScreen('overlay')
           }
           else { setScreen('overlay'); setPickMode(true); setTargets([]) }
@@ -463,7 +474,7 @@ export default function Home() {
               const x = e.clientX - rect.left, y = e.clientY - rect.top
               const newTarget = { x, y, id: Date.now() }
               setTargets(p => [...p, newTarget])
-              if (mode === 'single') { setPickMode(false); startClicking() }
+              if (mode === 'single') { setPickMode(false); startClicking(1) }
             }}>
             <p style={{ color: 'rgba(255,255,255,0.8)', marginTop: 60, fontSize: 13 }}>
               {mode === 'multi' ? 'Tap to add points, press DONE when finished' : 'Tap anywhere to select a point'}
@@ -471,7 +482,7 @@ export default function Home() {
           </div>
           {mode === 'multi' && targets.length > 0 && (
             <button style={{ position: 'absolute', bottom: 80, right: 30, background: '#38BDF8', color: '#fff', border: 'none', borderRadius: 16, padding: '12px 28px', fontWeight: 'bold', fontSize: 14, cursor: 'pointer', zIndex: 50 }}
-              onClick={() => { setPickMode(false); startClicking() }}>DONE</button>
+              onClick={() => { setPickMode(false); startClicking(targets.length) }}>DONE</button>
           )}
         </>
       )}
@@ -517,7 +528,7 @@ export default function Home() {
                 setCustomPickMode(false)
                 const overlayTargets = customPoints.map((p, i) => ({ x: p.x, y: p.y, id: p.id }))
                 setTargets(overlayTargets)
-                startClicking()
+                startClicking(overlayTargets.length)
               }}>DONE ({customPoints.length})</button>
           )}
 
@@ -528,16 +539,20 @@ export default function Home() {
       )}
 
       {/* Targets */}
-      {targets.map((t, i) => (
-        <div key={t.id} style={{ position: 'absolute', left: t.x - 24, top: t.y - 24, width: 48, height: 48, zIndex: 40 }}
-          onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, 'target', t.id) }}>
-          <svg width="48" height="48"><circle cx="24" cy="24" r="22" fill="rgba(56,189,248,0.15)" stroke="#38BDF8" strokeWidth="2" />
-            <line x1="0" y1="24" x2="48" y2="24" stroke="#38BDF8" strokeWidth="1" /><line x1="24" y1="0" x2="24" y2="48" stroke="#38BDF8" strokeWidth="1" />
-            <circle cx="24" cy="24" r="12" fill="rgba(56,189,248,0.4)" stroke="#38BDF8" strokeWidth="2" />
-            <text x="24" y="28" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="bold">{i + 1}</text></svg>
-          {running && !paused && <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid #38BDF8', animation: 'pulse .6s ease-out infinite' }} />}
-        </div>
-      ))}
+      {targets.map((t, i) => {
+        const isActive = running && !paused && currentStep === i
+        const clr = isActive ? '#34D399' : '#38BDF8'
+        return (
+          <div key={t.id} style={{ position: 'absolute', left: t.x - 24, top: t.y - 24, width: 48, height: 48, zIndex: 40, opacity: running ? (isActive ? 1 : 0.35) : 1, transition: 'opacity 0.15s' }}
+            onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, 'target', t.id) }}>
+            <svg width="48" height="48"><circle cx="24" cy="24" r="22" fill={isActive ? 'rgba(52,211,153,0.15)' : 'rgba(56,189,248,0.15)'} stroke={clr} strokeWidth="2" />
+              <line x1="0" y1="24" x2="48" y2="24" stroke={clr} strokeWidth="1" /><line x1="24" y1="0" x2="24" y2="48" stroke={clr} strokeWidth="1" />
+              <circle cx="24" cy="24" r="12" fill={isActive ? 'rgba(52,211,153,0.4)' : 'rgba(56,189,248,0.4)'} stroke={clr} strokeWidth="2" />
+              <text x="24" y="28" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="bold">{i + 1}</text></svg>
+            {isActive && <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid #34D399', animation: 'pulse .6s ease-out infinite' }} />}
+          </div>
+        )
+      })}
 
       {/* Connecting lines between targets on overlay */}
       {targets.length > 1 && !pickMode && !customPickMode && (
@@ -561,11 +576,21 @@ export default function Home() {
             {!paused ? (
               <button style={{ ...S.circleBtn, background: '#34D399' }} onClick={(e) => { e.stopPropagation(); setPaused(true); clearInterval(timerRef.current); clearInterval(elapsedRef.current) }}>⏸</button>
             ) : (
-              <button style={{ ...S.circleBtn, background: '#38BDF8' }} onClick={(e) => { e.stopPropagation(); setPaused(false) }}>▶</button>
+              <button style={{ ...S.circleBtn, background: '#38BDF8' }} onClick={(e) => {
+                e.stopPropagation(); setPaused(false)
+                const count = targetCountRef.current
+                timerRef.current = window.setInterval(() => {
+                  setClickCount(c => c + 1)
+                  currentStepRef.current += 1
+                  if (currentStepRef.current >= count) { currentStepRef.current = 0; setLoop(l => l + 1) }
+                  setCurrentStep(currentStepRef.current)
+                }, settings.interval)
+                elapsedRef.current = window.setInterval(() => setElapsed(e => e + 1), 1000)
+              }}>▶</button>
             )}
             <button style={{ ...S.circleBtn, background: '#F87171' }} onClick={(e) => { e.stopPropagation(); stopAll(); setCustomPoints([]); setScreen('main') }}>⏹</button>
           </div>
-          <div style={{ color: '#8B95B0', fontSize: 10, textAlign: 'center', marginTop: 6 }}>Loop {loop} • Step 1/{targets.length || '?'}</div>
+          <div style={{ color: '#8B95B0', fontSize: 10, textAlign: 'center', marginTop: 6 }}>Loop {loop} • Step {currentStep + 1}/{targets.length || '?'}</div>
         </div>
       )}
 
