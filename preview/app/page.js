@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 
 const PHONE_W = 390
 const PHONE_H = 844
@@ -31,8 +31,17 @@ export default function Home() {
   const [floatingPos, setFloatingPos] = useState({ x: 5, y: 150 })
   const [pickMode, setPickMode] = useState(false)
   const [patternType, setPatternType] = useState('circle')
+  const [patternConfig, setPatternConfig] = useState({
+    pointCount: 8, radius: 100,
+    gridRows: 3, gridCols: 3, gridSpacing: 40,
+    spiralRevolutions: 2,
+    areaWidth: 200, areaHeight: 200
+  })
+  const [customPoints, setCustomPoints] = useState([])
+  const [customPickMode, setCustomPickMode] = useState(false)
   const timerRef = useRef(null)
   const elapsedRef = useRef(null)
+  const randomSeedRef = useRef(Date.now())
 
   const stopAll = useCallback(() => {
     setRunning(false); setPaused(false)
@@ -61,6 +70,103 @@ export default function Home() {
   }, [dragging])
   const handleMouseUp = useCallback(() => setDragging(null), [])
   useEffect(() => { if (dragging) { window.addEventListener('mousemove', handleMouseMove); window.addEventListener('mouseup', handleMouseUp); return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp) } } }, [dragging, handleMouseMove, handleMouseUp])
+
+  // ===== PATTERN GENERATOR =====
+  const generatePatternPoints = useCallback((type, config) => {
+    const { pointCount, radius, gridRows, gridCols, gridSpacing, spiralRevolutions, areaWidth, areaHeight } = config
+    const points = []
+    switch (type) {
+      case 'circle':
+        for (let i = 0; i < pointCount; i++) {
+          const angle = (2 * Math.PI * i) / pointCount
+          points.push({ x: radius * Math.cos(angle), y: radius * Math.sin(angle), order: i })
+        }
+        break
+      case 'zigzag': {
+        const stepX = areaWidth / Math.max(pointCount - 1, 1)
+        const startX = -areaWidth / 2
+        const topY = -areaHeight / 2
+        const bottomY = areaHeight / 2
+        for (let i = 0; i < pointCount; i++) {
+          points.push({ x: startX + stepX * i, y: i % 2 === 0 ? topY : bottomY, order: i })
+        }
+        break
+      }
+      case 'grid': {
+        let idx = 0
+        const gStartX = -(gridCols - 1) * gridSpacing / 2
+        const gStartY = -(gridRows - 1) * gridSpacing / 2
+        for (let r = 0; r < gridRows; r++) {
+          for (let c = 0; c < gridCols; c++) {
+            points.push({ x: gStartX + c * gridSpacing, y: gStartY + r * gridSpacing, order: idx++ })
+          }
+        }
+        break
+      }
+      case 'spiral': {
+        const maxAngle = 2 * Math.PI * spiralRevolutions
+        for (let i = 0; i < pointCount; i++) {
+          const t = i / Math.max(pointCount - 1, 1)
+          const angle = maxAngle * t
+          const r = radius * t
+          points.push({ x: r * Math.cos(angle), y: r * Math.sin(angle), order: i })
+        }
+        break
+      }
+      case 'diamond': {
+        const perSide = Math.max(Math.floor(pointCount / 4), 1)
+        const corners = [[0, -radius], [radius, 0], [0, radius], [-radius, 0]]
+        let dIdx = 0
+        for (let side = 0; side < 4; side++) {
+          const [sx, sy] = corners[side]
+          const [ex, ey] = corners[(side + 1) % 4]
+          for (let p = 0; p < perSide; p++) {
+            const t = p / perSide
+            points.push({ x: sx + (ex - sx) * t, y: sy + (ey - sy) * t, order: dIdx++ })
+          }
+        }
+        break
+      }
+      case 'random': {
+        // Use seeded pseudo-random for stable preview
+        let seed = randomSeedRef.current
+        const seededRandom = () => { seed = (seed * 16807 + 0) % 2147483647; return seed / 2147483647 }
+        for (let i = 0; i < pointCount; i++) {
+          points.push({
+            x: (seededRandom() - 0.5) * areaWidth,
+            y: (seededRandom() - 0.5) * areaHeight,
+            order: i
+          })
+        }
+        break
+      }
+    }
+    return points
+  }, [])
+
+  // Compute preview points
+  const previewPoints = useMemo(() => {
+    if (patternType === 'custom') {
+      return customPoints.map((p, i) => ({ x: p.x - PHONE_W / 2, y: p.y - PHONE_H / 2, order: i }))
+    }
+    return generatePatternPoints(patternType, patternConfig)
+  }, [patternType, patternConfig, customPoints, generatePatternPoints])
+
+  // Scale preview points to fit SVG
+  const scaledPreview = useMemo(() => {
+    if (previewPoints.length === 0) return []
+    const svgW = 180, svgH = 140, pad = 20
+    const maxAbsX = Math.max(...previewPoints.map(p => Math.abs(p.x)), 1)
+    const maxAbsY = Math.max(...previewPoints.map(p => Math.abs(p.y)), 1)
+    const scaleX = (svgW - pad * 2) / 2 / maxAbsX
+    const scaleY = (svgH - pad * 2) / 2 / maxAbsY
+    const scale = Math.min(scaleX, scaleY)
+    return previewPoints.map(p => ({
+      x: svgW / 2 + p.x * scale,
+      y: svgH / 2 + p.y * scale,
+      order: p.order
+    }))
+  }, [previewPoints])
 
   // ===== ONBOARDING =====
   const renderOnboarding = () => (
@@ -104,9 +210,104 @@ export default function Home() {
     </div>
   )
 
+  // ===== PATTERN CONFIG SLIDERS =====
+  const renderSlider = (label, value, min, max, step, onChange) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ color: '#8B95B0', fontSize: 10, width: 60, flexShrink: 0 }}>{label}</span>
+      <input type="range" min={min} max={max} step={step || 1} value={value}
+        onChange={e => onChange(+e.target.value)}
+        style={{ flex: 1, accentColor: '#38BDF8', height: 4 }} />
+      <span style={{ color: '#38BDF8', fontSize: 10, width: 32, textAlign: 'right', flexShrink: 0 }}>
+        {Number.isInteger(value) ? value : value.toFixed(1)}
+      </span>
+    </div>
+  )
+
+  const renderPatternSliders = () => {
+    const update = (key, val) => setPatternConfig(prev => ({ ...prev, [key]: val }))
+    switch (patternType) {
+      case 'circle':
+        return <>
+          {renderSlider('Points', patternConfig.pointCount, 3, 24, 1, v => update('pointCount', v))}
+          {renderSlider('Radius', patternConfig.radius, 30, 200, 1, v => update('radius', v))}
+        </>
+      case 'zigzag':
+        return <>
+          {renderSlider('Points', patternConfig.pointCount, 3, 20, 1, v => update('pointCount', v))}
+          {renderSlider('Width', patternConfig.areaWidth, 50, 300, 1, v => update('areaWidth', v))}
+          {renderSlider('Height', patternConfig.areaHeight, 50, 300, 1, v => update('areaHeight', v))}
+        </>
+      case 'grid':
+        return <>
+          {renderSlider('Rows', patternConfig.gridRows, 2, 8, 1, v => update('gridRows', v))}
+          {renderSlider('Columns', patternConfig.gridCols, 2, 8, 1, v => update('gridCols', v))}
+          {renderSlider('Spacing', patternConfig.gridSpacing, 20, 100, 1, v => update('gridSpacing', v))}
+        </>
+      case 'spiral':
+        return <>
+          {renderSlider('Points', patternConfig.pointCount, 4, 30, 1, v => update('pointCount', v))}
+          {renderSlider('Radius', patternConfig.radius, 30, 200, 1, v => update('radius', v))}
+          {renderSlider('Turns', patternConfig.spiralRevolutions, 1, 5, 0.5, v => update('spiralRevolutions', v))}
+        </>
+      case 'diamond':
+        return <>
+          {renderSlider('Points', patternConfig.pointCount, 4, 24, 4, v => update('pointCount', v))}
+          {renderSlider('Radius', patternConfig.radius, 30, 200, 1, v => update('radius', v))}
+        </>
+      case 'random':
+        return <>
+          {renderSlider('Points', patternConfig.pointCount, 3, 20, 1, v => update('pointCount', v))}
+          {renderSlider('Width', patternConfig.areaWidth, 50, 300, 1, v => update('areaWidth', v))}
+          {renderSlider('Height', patternConfig.areaHeight, 50, 300, 1, v => update('areaHeight', v))}
+        </>
+      default:
+        return null
+    }
+  }
+
+  // ===== CUSTOM POINTS LIST =====
+  const renderCustomPointsList = () => {
+    if (customPoints.length === 0) return null
+    return (
+      <div style={{ marginTop: 6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <span style={{ color: '#8B95B0', fontSize: 10, fontWeight: 600 }}>Custom Points ({customPoints.length})</span>
+          <button onClick={() => setCustomPoints([])}
+            style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 10, cursor: 'pointer', padding: '2px 6px' }}>
+            Clear All
+          </button>
+        </div>
+        <div style={{ maxHeight: 100, overflowY: 'auto' }}>
+          {customPoints.map((pt, i) => (
+            <div key={pt.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
+              <span style={{ color: '#38BDF8', fontSize: 10, width: 20 }}>#{i + 1}</span>
+              <span style={{ color: '#E8ECF4', fontSize: 10, flex: 1 }}>({Math.round(pt.x)}, {Math.round(pt.y)})</span>
+              <button onClick={() => {
+                if (i > 0) {
+                  const pts = [...customPoints]
+                  ;[pts[i], pts[i - 1]] = [pts[i - 1], pts[i]]
+                  setCustomPoints(pts)
+                }
+              }} style={{ ...S.miniBtn, opacity: i > 0 ? 1 : 0.3 }}>↑</button>
+              <button onClick={() => {
+                if (i < customPoints.length - 1) {
+                  const pts = [...customPoints]
+                  ;[pts[i], pts[i + 1]] = [pts[i + 1], pts[i]]
+                  setCustomPoints(pts)
+                }
+              }} style={{ ...S.miniBtn, opacity: i < customPoints.length - 1 ? 1 : 0.3 }}>↓</button>
+              <button onClick={() => setCustomPoints(prev => prev.filter(p => p.id !== pt.id))}
+                style={{ ...S.miniBtn, color: '#F87171' }}>✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   // ===== HOME SCREEN =====
   const renderHome = () => (
-    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box', overflowY: 'auto' }}>
       <h2 style={{ color: '#E8ECF4', margin: '0 0 16px', fontSize: 22 }}>Auto Clicker</h2>
 
       {/* Mode selection - 3 cards */}
@@ -125,21 +326,68 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Pattern type selector */}
+      {/* Pattern type selector + preview + config */}
       {mode === 'pattern' && (
         <div style={{ ...S.card, background: '#1A2035', marginBottom: 12 }}>
           <div style={{ color: '#E8ECF4', fontWeight: 600, fontSize: 13, marginBottom: 10 }}>Pattern Type</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {['Circle', 'Zigzag', 'Grid', 'Spiral', 'Diamond', 'Random'].map(p => (
-              <button key={p} onClick={() => setPatternType(p.toLowerCase())}
+
+          {/* Type buttons */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+            {['Circle', 'Zigzag', 'Grid', 'Spiral', 'Diamond', 'Random', 'Custom'].map(p => (
+              <button key={p} onClick={() => {
+                setPatternType(p.toLowerCase())
+                if (p.toLowerCase() === 'random') randomSeedRef.current = Date.now()
+              }}
                 style={{
-                  padding: '6px 12px', borderRadius: 12, border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  padding: '6px 10px', borderRadius: 12, border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer',
                   background: patternType === p.toLowerCase() ? '#38BDF8' : 'rgba(56,189,248,0.15)',
                   color: patternType === p.toLowerCase() ? '#0B0F19' : '#38BDF8'
                 }}>{p}</button>
             ))}
           </div>
-          <div style={{ color: '#8B95B0', fontSize: 11, marginTop: 8 }}>Points: 8 | Radius: 100px</div>
+
+          {/* SVG Pattern Preview */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+            <svg width="180" height="140" style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 10 }}>
+              {scaledPreview.length > 0 && (
+                <>
+                  {/* Connecting lines (execution order) */}
+                  {scaledPreview.map((pt, i) => {
+                    if (i === 0) return null
+                    const prev = scaledPreview[i - 1]
+                    return <line key={`l${i}`} x1={prev.x} y1={prev.y} x2={pt.x} y2={pt.y}
+                      stroke="rgba(56,189,248,0.3)" strokeWidth="1.5" strokeDasharray="4 3" />
+                  })}
+                  {/* Point dots */}
+                  {scaledPreview.map((pt, i) => (
+                    <g key={`p${i}`}>
+                      <circle cx={pt.x} cy={pt.y} r="10" fill="rgba(56,189,248,0.15)" />
+                      <circle cx={pt.x} cy={pt.y} r="4" fill="#38BDF8" />
+                      <text x={pt.x} y={pt.y - 13} textAnchor="middle" fill="#38BDF8" fontSize="8" fontWeight="bold">{i + 1}</text>
+                    </g>
+                  ))}
+                </>
+              )}
+              {scaledPreview.length === 0 && patternType === 'custom' && (
+                <text x="90" y="75" textAnchor="middle" fill="#8B95B0" fontSize="10">Tap START to place points</text>
+              )}
+            </svg>
+          </div>
+
+          {/* Parameter sliders */}
+          {patternType !== 'custom' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {renderPatternSliders()}
+            </div>
+          )}
+
+          {/* Custom points info / list */}
+          {patternType === 'custom' && customPoints.length === 0 && (
+            <div style={{ color: '#8B95B0', fontSize: 11, textAlign: 'center', padding: '4px 0' }}>
+              Press START to place custom points on screen
+            </div>
+          )}
+          {patternType === 'custom' && renderCustomPointsList()}
         </div>
       )}
 
@@ -160,7 +408,29 @@ export default function Home() {
       <button style={{ ...S.primaryBtn, background: running ? '#F87171' : '#38BDF8', transition: 'background 0.3s' }}
         onClick={() => {
           if (running) { stopAll(); }
-          else if (mode === 'pattern') { startClicking(); setScreen('overlay'); setTargets([]); }
+          else if (mode === 'pattern' && patternType === 'custom') {
+            // Custom pattern: enter overlay pick mode
+            setScreen('overlay'); setCustomPickMode(true)
+          }
+          else if (mode === 'pattern') {
+            // Preset pattern: generate points and show on overlay
+            const pts = generatePatternPoints(patternType, patternConfig)
+            const cx = PHONE_W / 2, cy = PHONE_H / 2
+            // Scale to fit overlay
+            const maxAbsX = Math.max(...pts.map(p => Math.abs(p.x)), 1)
+            const maxAbsY = Math.max(...pts.map(p => Math.abs(p.y)), 1)
+            const scaleX = 140 / maxAbsX
+            const scaleY = 280 / maxAbsY
+            const scale = Math.min(scaleX, scaleY, 1.5)
+            const overlayTargets = pts.map((p, i) => ({
+              x: cx + p.x * scale,
+              y: cy + p.y * scale,
+              id: Date.now() + i
+            }))
+            setTargets(overlayTargets)
+            startClicking()
+            setScreen('overlay')
+          }
           else { setScreen('overlay'); setPickMode(true); setTargets([]) }
         }}>
         <span style={{ fontSize: 20, marginRight: 8 }}>{running ? '⏹' : '▶'}</span>
@@ -184,6 +454,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Single/Multi pick mode */}
       {pickMode && (
         <>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
@@ -205,6 +476,57 @@ export default function Home() {
         </>
       )}
 
+      {/* Custom pattern pick mode */}
+      {customPickMode && (
+        <>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              const x = e.clientX - rect.left, y = e.clientY - rect.top
+              setCustomPoints(prev => [...prev, { x, y, id: Date.now() }])
+            }}>
+            <p style={{ color: 'rgba(255,255,255,0.8)', marginTop: 60, fontSize: 13 }}>
+              Tap to place custom pattern points ({customPoints.length} placed)
+            </p>
+          </div>
+
+          {/* Custom point markers */}
+          {customPoints.map((pt, i) => (
+            <div key={pt.id} style={{ position: 'absolute', left: pt.x - 16, top: pt.y - 16, width: 32, height: 32, zIndex: 40, pointerEvents: 'none' }}>
+              <svg width="32" height="32">
+                <circle cx="16" cy="16" r="14" fill="rgba(56,189,248,0.15)" stroke="#38BDF8" strokeWidth="2" />
+                <circle cx="16" cy="16" r="6" fill="rgba(56,189,248,0.5)" />
+                <text x="16" y="20" textAnchor="middle" fill="#fff" fontSize="10" fontWeight="bold">{i + 1}</text>
+              </svg>
+            </div>
+          ))}
+
+          {/* Connecting lines between custom points */}
+          <svg style={{ position: 'absolute', inset: 0, zIndex: 35, pointerEvents: 'none' }} width="100%" height="100%">
+            {customPoints.map((pt, i) => {
+              if (i === 0) return null
+              const prev = customPoints[i - 1]
+              return <line key={i} x1={prev.x} y1={prev.y} x2={pt.x} y2={pt.y}
+                stroke="rgba(56,189,248,0.4)" strokeWidth="2" strokeDasharray="6 4" />
+            })}
+          </svg>
+
+          {customPoints.length > 0 && (
+            <button style={{ position: 'absolute', bottom: 80, right: 30, background: '#38BDF8', color: '#fff', border: 'none', borderRadius: 16, padding: '12px 28px', fontWeight: 'bold', fontSize: 14, cursor: 'pointer', zIndex: 50 }}
+              onClick={() => {
+                setCustomPickMode(false)
+                const overlayTargets = customPoints.map((p, i) => ({ x: p.x, y: p.y, id: p.id }))
+                setTargets(overlayTargets)
+                startClicking()
+              }}>DONE ({customPoints.length})</button>
+          )}
+
+          {/* Back button */}
+          <button style={{ position: 'absolute', bottom: 80, left: 30, background: 'rgba(248,113,113,0.9)', color: '#fff', border: 'none', borderRadius: 16, padding: '12px 20px', fontWeight: 'bold', fontSize: 12, cursor: 'pointer', zIndex: 50 }}
+            onClick={() => { setCustomPickMode(false); setScreen('main') }}>Cancel</button>
+        </>
+      )}
+
       {/* Targets */}
       {targets.map((t, i) => (
         <div key={t.id} style={{ position: 'absolute', left: t.x - 24, top: t.y - 24, width: 48, height: 48, zIndex: 40 }}
@@ -217,8 +539,20 @@ export default function Home() {
         </div>
       ))}
 
+      {/* Connecting lines between targets on overlay */}
+      {targets.length > 1 && !pickMode && !customPickMode && (
+        <svg style={{ position: 'absolute', inset: 0, zIndex: 35, pointerEvents: 'none' }} width="100%" height="100%">
+          {targets.map((t, i) => {
+            if (i === 0) return null
+            const prev = targets[i - 1]
+            return <line key={i} x1={prev.x} y1={prev.y} x2={t.x} y2={t.y}
+              stroke="rgba(56,189,248,0.25)" strokeWidth="1.5" strokeDasharray="6 4" />
+          })}
+        </svg>
+      )}
+
       {/* Floating toolbar */}
-      {!pickMode && (
+      {!pickMode && !customPickMode && (
         <div style={{ position: 'absolute', left: floatingPos.x, top: floatingPos.y, width: 130, background: 'rgba(30,35,50,0.92)', borderRadius: 20, padding: 10, zIndex: 100, backdropFilter: 'blur(10px)' }}
           onMouseDown={(e) => handleMouseDown(e, 'float', null)}>
           <div style={{ color: '#8B95B0', fontSize: 11, textAlign: 'center' }}>{clickCount} taps</div>
@@ -231,7 +565,7 @@ export default function Home() {
             )}
             <button style={{ ...S.circleBtn, background: '#F87171' }} onClick={(e) => { e.stopPropagation(); stopAll(); setScreen('main') }}>⏹</button>
           </div>
-          <div style={{ color: '#8B95B0', fontSize: 10, textAlign: 'center', marginTop: 6 }}>Loop {loop} • Step 1</div>
+          <div style={{ color: '#8B95B0', fontSize: 10, textAlign: 'center', marginTop: 6 }}>Loop {loop} • Step 1/{targets.length || '?'}</div>
         </div>
       )}
 
@@ -418,7 +752,7 @@ export default function Home() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#050508', padding: 20, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       <h1 style={{ color: '#E8ECF4', fontSize: 18, marginBottom: 4 }}>Auto Clicker — Interactive Preview</h1>
       <p style={{ color: '#8B95B0', fontSize: 12, marginBottom: 14 }}>
-        {screen === 'onboarding' ? 'Onboarding' : screen === 'overlay' ? 'Overlay Mode — drag targets & toolbar' : ['Clicker', 'Scripts', 'Settings'][tab]}
+        {screen === 'onboarding' ? 'Onboarding' : screen === 'overlay' ? (customPickMode ? 'Custom Pattern — tap to place points' : 'Overlay Mode — drag targets & toolbar') : ['Clicker', 'Scripts', 'Settings'][tab]}
       </p>
 
       <div style={{ width: PHONE_W, height: PHONE_H, borderRadius: 44, border: '3px solid #2A3250', overflow: 'hidden', background: '#0B0F19', position: 'relative', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
@@ -458,4 +792,5 @@ const S = {
   tonalBtn: { padding: '6px 14px', borderRadius: 12, border: 'none', background: 'rgba(56,189,248,0.15)', color: '#38BDF8', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
   circleBtn: { width: 36, height: 36, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   input: { flex: 1, padding: '8px 12px', borderRadius: 10, border: '1px solid #2A3250', background: '#131825', color: '#E8ECF4', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' },
+  miniBtn: { background: 'none', border: 'none', color: '#8B95B0', fontSize: 12, cursor: 'pointer', padding: '1px 4px', lineHeight: 1 },
 }

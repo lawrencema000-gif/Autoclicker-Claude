@@ -19,6 +19,9 @@ object PatternGenerator {
             PatternType.SPIRAL -> generateSpiral(config, intervalMs, holdMs)
             PatternType.DIAMOND -> generateDiamond(config, intervalMs, holdMs)
             PatternType.RANDOM_AREA -> generateRandomArea(config, intervalMs, holdMs)
+            PatternType.CUSTOM -> config.customPoints.mapIndexed { i, pt ->
+                pt.copy(delayBefore = intervalMs, holdDuration = holdMs, order = i)
+            }
         }
     }
 

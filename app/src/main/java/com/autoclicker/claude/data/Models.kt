@@ -30,7 +30,8 @@ enum class PatternType {
     @SerializedName("grid") GRID,
     @SerializedName("spiral") SPIRAL,
     @SerializedName("diamond") DIAMOND,
-    @SerializedName("random_area") RANDOM_AREA
+    @SerializedName("random_area") RANDOM_AREA,
+    @SerializedName("custom") CUSTOM
 }
 
 enum class SpeedPreset(val label: String, val intervalMs: Long) {
@@ -83,7 +84,8 @@ data class PatternConfig(
     val gridSpacing: Float = 80f,
     val spiralRevolutions: Float = 2f,
     val areaWidth: Float = 200f,
-    val areaHeight: Float = 200f
+    val areaHeight: Float = 200f,
+    val customPoints: List<ClickPoint> = emptyList()
 )
 
 data class AntiDetectionConfig(
