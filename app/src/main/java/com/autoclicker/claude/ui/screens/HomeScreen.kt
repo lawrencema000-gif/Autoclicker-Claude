@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.autoclicker.claude.ads.AdManager
+import com.autoclicker.claude.ads.BannerAdView
 import com.autoclicker.claude.data.ClickMode
 import com.autoclicker.claude.data.ClickPoint
 import com.autoclicker.claude.data.PatternConfig
@@ -40,7 +42,7 @@ import com.autoclicker.claude.util.PatternGenerator
 import kotlin.math.abs
 
 @Composable
-fun HomeScreen(vm: MainViewModel) {
+fun HomeScreen(vm: MainViewModel, onShowInterstitial: () -> Unit = {}) {
     val runState by vm.runState.collectAsState()
     val stats by vm.stats.collectAsState()
     val serviceConnected by vm.serviceConnected.collectAsState()
@@ -59,6 +61,9 @@ fun HomeScreen(vm: MainViewModel) {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
+
+        // Banner Ad
+        BannerAdView()
 
         // Mode selection
         Row(
@@ -199,7 +204,7 @@ fun HomeScreen(vm: MainViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Start/Stop button
         val btnColor by animateColorAsState(
@@ -212,7 +217,12 @@ fun HomeScreen(vm: MainViewModel) {
 
         Button(
             onClick = {
-                if (runState != RunState.IDLE) vm.stopExecution() else vm.quickStart()
+                if (runState != RunState.IDLE) {
+                    vm.stopExecution()
+                    onShowInterstitial()
+                } else {
+                    vm.quickStart()
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()

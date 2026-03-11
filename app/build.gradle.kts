@@ -54,4 +54,5 @@ dependencies {
     implementation(libs.compose.material.icons.extended)
     implementation(libs.datastore.preferences)
     implementation(libs.gson)
+    implementation(libs.play.services.ads)
 }

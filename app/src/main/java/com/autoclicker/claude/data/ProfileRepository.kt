@@ -102,9 +102,10 @@ class ProfileRepository(private val context: Context) {
     fun exportProfileJson(profile: TapProfile): String = gson.toJson(profile)
 
     suspend fun importProfileJson(json: String): TapProfile {
-        val imported = gson.fromJson(json, TapProfile::class.java).copy(
+        val parsed = gson.fromJson(json, TapProfile::class.java)
+        val imported = parsed.copy(
             id = UUID.randomUUID().toString(),
-            name = "${gson.fromJson(json, TapProfile::class.java).name} (Imported)",
+            name = "${parsed.name} (Imported)",
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
         )

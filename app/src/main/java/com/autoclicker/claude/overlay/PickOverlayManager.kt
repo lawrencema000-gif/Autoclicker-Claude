@@ -117,6 +117,11 @@ class PickOverlayManager(private val service: AccessibilityService) {
             style = Paint.Style.FILL
             isAntiAlias = true
         }
+        private val markerFillPaint = Paint().apply {
+            color = Color.parseColor("#4438BDF8")
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
         private val markerPaint = Paint().apply {
             color = Color.parseColor("#38BDF8")
             style = Paint.Style.FILL
@@ -161,11 +166,7 @@ class PickOverlayManager(private val service: AccessibilityService) {
 
             // Draw picked point markers
             pickedPoints.forEachIndexed { index, (px, py) ->
-                canvas.drawCircle(px, py, 28f, Paint().apply {
-                    color = Color.parseColor("#4438BDF8")
-                    style = Paint.Style.FILL
-                    isAntiAlias = true
-                })
+                canvas.drawCircle(px, py, 28f, markerFillPaint)
                 canvas.drawCircle(px, py, 28f, markerStrokePaint)
                 canvas.drawText("${index + 1}", px, py + 12f, textPaint)
             }

@@ -21,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.autoclicker.claude.ads.AdManager
 import com.autoclicker.claude.data.TapProfile
 import com.autoclicker.claude.ui.screens.*
 import com.autoclicker.claude.ui.theme.AutoClickerTheme
@@ -43,6 +44,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Initialize AdMob
+        AdManager.initialize(this)
 
         // Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -114,7 +118,12 @@ class MainActivity : ComponentActivity() {
         ) { padding ->
             Box(modifier = Modifier.padding(padding)) {
                 when (selectedTab) {
-                    0 -> HomeScreen(vm)
+                    0 -> HomeScreen(
+                        vm = vm,
+                        onShowInterstitial = {
+                            AdManager.showInterstitialIfReady(this@MainActivity)
+                        }
+                    )
                     1 -> ProfileListScreen(
                         vm = vm,
                         onImport = { importLauncher.launch("application/json") },

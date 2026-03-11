@@ -75,6 +75,7 @@ class AutoClickService : AccessibilityService() {
         pickOverlay?.dismiss()
         floatingToolbar?.dismiss()
         CommandBus.setServiceConnected(false)
+        scope.cancel()
         return super.onUnbind(intent)
     }
 

@@ -28,6 +28,7 @@ dependencyResolutionManagement {
             version("composeBom", "2024.12.01")
             version("datastore", "1.1.1")
             version("gson", "2.11.0")
+            version("playServicesAds", "23.6.0")
 
             library("core-ktx", "androidx.core", "core-ktx").versionRef("coreKtx")
             library("lifecycle-runtime-ktx", "androidx.lifecycle", "lifecycle-runtime-ktx").versionRef("lifecycle")
@@ -41,6 +42,7 @@ dependencyResolutionManagement {
             library("compose-material-icons-extended", "androidx.compose.material", "material-icons-extended").withoutVersion()
             library("datastore-preferences", "androidx.datastore", "datastore-preferences").versionRef("datastore")
             library("gson", "com.google.code.gson", "gson").versionRef("gson")
+            library("play-services-ads", "com.google.android.gms", "play-services-ads").versionRef("playServicesAds")
 
             plugin("android-application", "com.android.application").versionRef("agp")
             plugin("kotlin-android", "org.jetbrains.kotlin.android").versionRef("kotlin")

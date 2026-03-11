@@ -130,7 +130,7 @@ private fun ProfileCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    "${if (profile.mode == ClickMode.SINGLE_POINT) "Single" else "Multi"} • ${profile.steps.size} steps • ${profile.intervalMs}ms",
+                    "${when (profile.mode) { ClickMode.SINGLE_POINT -> "Single"; ClickMode.MULTI_POINT -> "Multi"; ClickMode.PATTERN_MODE -> "Pattern" }} • ${profile.steps.size} steps • ${profile.intervalMs}ms",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
