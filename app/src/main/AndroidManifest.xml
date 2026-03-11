@@ -20,7 +20,7 @@
 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY" />
+            android:value="ca-app-pub-9489106590476826~4416549545" />
 
         <property
             android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

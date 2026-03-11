@@ -1,89 +1,107 @@
 package com.autoclicker.claude.ads
 
 import android.app.Activity
-import android.content.Context
+import android.app.Application
+import android.os.Bundle
 import android.util.Log
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
-import com.google.android.gms.ads.interstitial.InterstitialAd
-import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.appopen.AppOpenAd
 
-object AdManager {
+object AdManager : Application.ActivityLifecycleCallbacks {
     private const val TAG = "AdManager"
+    private const val APP_OPEN_AD_UNIT_ID = "ca-app-pub-9489106590476826/5937155980"
 
-    // TODO: Replace with your real ad unit IDs before publishing
-    const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111" // Test banner
-    const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712" // Test interstitial
-
-    private var interstitialAd: InterstitialAd? = null
+    private var appOpenAd: AppOpenAd? = null
+    private var isLoadingAd = false
+    private var isShowingAd = false
     private var isInitialized = false
-    private var adShowCount = 0
+    private var currentActivity: Activity? = null
 
-    fun initialize(context: Context) {
+    fun initialize(application: Application) {
         if (isInitialized) return
-        MobileAds.initialize(context) {
+        application.registerActivityLifecycleCallbacks(this)
+        MobileAds.initialize(application) {
             isInitialized = true
             Log.d(TAG, "AdMob initialized")
-            loadInterstitial(context)
+            loadAd(application)
         }
     }
 
-    fun loadInterstitial(context: Context) {
-        if (interstitialAd != null) return
+    private fun loadAd(activity: Activity) {
+        loadAdInternal(activity)
+    }
 
-        val adRequest = AdRequest.Builder().build()
-        InterstitialAd.load(context, INTERSTITIAL_AD_UNIT_ID, adRequest,
-            object : InterstitialAdLoadCallback() {
-                override fun onAdLoaded(ad: InterstitialAd) {
-                    interstitialAd = ad
-                    Log.d(TAG, "Interstitial loaded")
+    private fun loadAd(application: Application) {
+        loadAdInternal(application as android.content.Context)
+    }
+
+    private fun loadAdInternal(context: android.content.Context) {
+        if (isLoadingAd || appOpenAd != null) return
+        isLoadingAd = true
+
+        val request = AdRequest.Builder().build()
+        AppOpenAd.load(context, APP_OPEN_AD_UNIT_ID, request,
+            object : AppOpenAd.AppOpenAdLoadCallback() {
+                override fun onAdLoaded(ad: AppOpenAd) {
+                    appOpenAd = ad
+                    isLoadingAd = false
+                    Log.d(TAG, "App Open Ad loaded")
                 }
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
-                    interstitialAd = null
-                    Log.d(TAG, "Interstitial failed to load: ${error.message}")
+                    isLoadingAd = false
+                    Log.d(TAG, "App Open Ad failed to load: ${error.message}")
                 }
             }
         )
     }
 
-    /**
-     * Show interstitial ad every 3rd action to avoid being too aggressive.
-     * Returns true if ad was shown.
-     */
-    fun showInterstitialIfReady(activity: Activity, onDismissed: () -> Unit = {}): Boolean {
-        adShowCount++
-        // Show every 3rd time to balance UX and revenue
-        if (adShowCount % 3 != 0) {
-            onDismissed()
-            return false
-        }
+    private fun showAdIfAvailable(activity: Activity) {
+        if (isShowingAd) return
 
-        val ad = interstitialAd
+        val ad = appOpenAd
         if (ad == null) {
-            onDismissed()
-            loadInterstitial(activity)
-            return false
+            loadAd(activity)
+            return
         }
 
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
-                interstitialAd = null
-                loadInterstitial(activity)
-                onDismissed()
+                appOpenAd = null
+                isShowingAd = false
+                loadAd(activity)
             }
 
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                interstitialAd = null
-                loadInterstitial(activity)
-                onDismissed()
+                appOpenAd = null
+                isShowingAd = false
+                loadAd(activity)
+            }
+
+            override fun onAdShowedFullScreenContent() {
+                isShowingAd = true
             }
         }
 
         ad.show(activity)
-        return true
+    }
+
+    // ActivityLifecycleCallbacks — show ad when app comes to foreground
+    override fun onActivityStarted(activity: Activity) {
+        currentActivity = activity
+        showAdIfAvailable(activity)
+    }
+
+    override fun onActivityResumed(activity: Activity) { currentActivity = activity }
+    override fun onActivityPaused(activity: Activity) {}
+    override fun onActivityStopped(activity: Activity) {}
+    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+    override fun onActivityDestroyed(activity: Activity) {
+        if (currentActivity == activity) currentActivity = null
     }
 }

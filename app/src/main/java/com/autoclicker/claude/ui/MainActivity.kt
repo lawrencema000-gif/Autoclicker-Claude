@@ -45,8 +45,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Initialize AdMob
-        AdManager.initialize(this)
+        // Initialize AdMob (App Open Ad on foreground)
+        AdManager.initialize(application)
 
         // Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -118,12 +118,7 @@ class MainActivity : ComponentActivity() {
         ) { padding ->
             Box(modifier = Modifier.padding(padding)) {
                 when (selectedTab) {
-                    0 -> HomeScreen(
-                        vm = vm,
-                        onShowInterstitial = {
-                            AdManager.showInterstitialIfReady(this@MainActivity)
-                        }
-                    )
+                    0 -> HomeScreen(vm)
                     1 -> ProfileListScreen(
                         vm = vm,
                         onImport = { importLauncher.launch("application/json") },
