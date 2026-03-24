@@ -344,7 +344,7 @@ fun SettingsScreen(
                     Text("Battery Optimization", fontWeight = FontWeight.SemiBold)
                     Text("Disable to prevent system stopping the app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                FilledTonalButton(onClick = onRequestBattery, shape = RoundedCornerShape(12.dp)) { Text("Optimize") }
+                FilledTonalButton(onClick = onRequestBattery, shape = RoundedCornerShape(12.dp)) { Text("Disable") }
             }
         }
 

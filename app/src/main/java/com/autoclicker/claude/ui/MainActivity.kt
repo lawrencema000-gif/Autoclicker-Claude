@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
                 }
                 startActivity(intent)
             } else {
-                Toast.makeText(this, "Already optimized", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Battery optimization already disabled", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             Toast.makeText(this, "Could not open battery settings", Toast.LENGTH_SHORT).show()

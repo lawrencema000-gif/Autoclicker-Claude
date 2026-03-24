@@ -1,5 +1,7 @@
 package com.autoclicker.claude.ui.screens
 
+import android.content.Context
+import android.os.PowerManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -10,15 +12,17 @@ import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.autoclicker.claude.data.CommandBus
 
 @Composable
@@ -28,6 +32,20 @@ fun OnboardingScreen(
     onComplete: () -> Unit
 ) {
     val serviceConnected by CommandBus.serviceConnected.collectAsState()
+    val context = LocalContext.current
+
+    // Check battery optimization status, re-check when resumed from settings
+    var batteryOptimized by remember { mutableStateOf(isBatteryOptimized(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                batteryOptimized = isBatteryOptimized(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Column(
         modifier = Modifier
@@ -89,9 +107,9 @@ fun OnboardingScreen(
             title = "Disable Battery Optimization",
             description = "Recommended to prevent the system from stopping AutoClicker.",
             icon = Icons.Default.BatteryChargingFull,
-            completed = false,
-            actionLabel = "Optimize",
-            onAction = onRequestBattery
+            completed = batteryOptimized,
+            actionLabel = if (batteryOptimized) "Done" else "Disable",
+            onAction = { if (!batteryOptimized) onRequestBattery() }
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -112,6 +130,11 @@ fun OnboardingScreen(
             Text("Skip for now", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+private fun isBatteryOptimized(context: Context): Boolean {
+    val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    return pm.isIgnoringBatteryOptimizations(context.packageName)
 }
 
 @Composable
