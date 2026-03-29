@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.autoclicker.claude.ads.BannerAd
 import com.autoclicker.claude.data.ClickMode
 import com.autoclicker.claude.data.ClickPoint
 import com.autoclicker.claude.data.PatternConfig
@@ -243,6 +244,11 @@ fun HomeScreen(vm: MainViewModel) {
                 modifier = Modifier.fillMaxWidth()
             )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Banner ad at bottom of home screen
+        BannerAd(modifier = Modifier.padding(top = 8.dp))
     }
 }
 

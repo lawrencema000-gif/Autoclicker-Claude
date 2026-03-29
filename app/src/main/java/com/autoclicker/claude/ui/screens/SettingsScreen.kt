@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.autoclicker.claude.ads.BannerAd
 import com.autoclicker.claude.data.*
 import com.autoclicker.claude.ui.MainViewModel
 
@@ -347,6 +348,9 @@ fun SettingsScreen(
                 FilledTonalButton(onClick = onRequestBattery, shape = RoundedCornerShape(12.dp)) { Text("Disable") }
             }
         }
+
+        // Banner ad at bottom of settings
+        BannerAd(modifier = Modifier.padding(top = 8.dp))
 
         Spacer(modifier = Modifier.height(16.dp))
     }
