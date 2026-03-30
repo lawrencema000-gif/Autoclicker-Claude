@@ -22,13 +22,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.autoclicker.claude.ads.AdManager
-import com.autoclicker.claude.data.CommandBus
-import com.autoclicker.claude.data.RunState
 import com.autoclicker.claude.data.TapProfile
 import com.autoclicker.claude.ui.screens.*
 import com.autoclicker.claude.ui.theme.AutoClickerTheme
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -55,17 +51,6 @@ class MainActivity : ComponentActivity() {
         // Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-
-        // Show interstitial ad when a click session stops
-        lifecycleScope.launch {
-            var previousState = CommandBus.runState.value
-            CommandBus.runState.collect { currentState ->
-                if (previousState == RunState.RUNNING && currentState == RunState.IDLE) {
-                    AdManager.showInterstitial(this@MainActivity)
-                }
-                previousState = currentState
-            }
         }
 
         setContent {

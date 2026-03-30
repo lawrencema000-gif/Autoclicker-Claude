@@ -11,24 +11,18 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.appopen.AppOpenAd
-import com.google.android.gms.ads.interstitial.InterstitialAd
-import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 
 object AdManager : Application.ActivityLifecycleCallbacks {
     private const val TAG = "AdManager"
 
     // Production ad unit IDs
     private const val APP_OPEN_AD_UNIT_PROD = "ca-app-pub-9489106590476826/5937155980"
-    private const val INTERSTITIAL_AD_UNIT_PROD = "ca-app-pub-9489106590476826/7261830147"
 
-    // Google's official test ad unit IDs (always show test ads)
+    // Google's official test ad unit IDs (always show test ads in debug)
     private const val APP_OPEN_AD_UNIT_TEST = "ca-app-pub-3940256099942544/9257395921"
-    private const val INTERSTITIAL_AD_UNIT_TEST = "ca-app-pub-3940256099942544/1033173712"
 
     private val appOpenAdUnitId: String
         get() = if (BuildConfig.DEBUG) APP_OPEN_AD_UNIT_TEST else APP_OPEN_AD_UNIT_PROD
-    private val interstitialAdUnitId: String
-        get() = if (BuildConfig.DEBUG) INTERSTITIAL_AD_UNIT_TEST else INTERSTITIAL_AD_UNIT_PROD
 
     // Banner ad unit IDs (accessed by BannerAd composable)
     const val BANNER_AD_UNIT_PROD = "ca-app-pub-9489106590476826/1583041258"
@@ -37,9 +31,7 @@ object AdManager : Application.ActivityLifecycleCallbacks {
         get() = if (BuildConfig.DEBUG) BANNER_AD_UNIT_TEST else BANNER_AD_UNIT_PROD
 
     private var appOpenAd: AppOpenAd? = null
-    private var interstitialAd: InterstitialAd? = null
     private var isLoadingAppOpen = false
-    private var isLoadingInterstitial = false
     private var isShowingAd = false
     var isInitialized = false
         private set
@@ -52,11 +44,8 @@ object AdManager : Application.ActivityLifecycleCallbacks {
             isInitialized = true
             Log.d(TAG, "AdMob initialized")
             loadAppOpenAd(application)
-            loadInterstitialAd(application)
         }
     }
-
-    // ===== App Open Ad =====
 
     private fun loadAppOpenAd(context: android.content.Context) {
         if (isLoadingAppOpen || appOpenAd != null) return
@@ -99,60 +88,7 @@ object AdManager : Application.ActivityLifecycleCallbacks {
         ad.show(activity)
     }
 
-    // ===== Interstitial Ad =====
-
-    private fun loadInterstitialAd(context: android.content.Context) {
-        if (isLoadingInterstitial || interstitialAd != null) return
-        isLoadingInterstitial = true
-
-        InterstitialAd.load(context, interstitialAdUnitId, AdRequest.Builder().build(),
-            object : InterstitialAdLoadCallback() {
-                override fun onAdLoaded(ad: InterstitialAd) {
-                    interstitialAd = ad
-                    isLoadingInterstitial = false
-                    Log.d(TAG, "Interstitial Ad loaded")
-                }
-                override fun onAdFailedToLoad(error: LoadAdError) {
-                    isLoadingInterstitial = false
-                    Log.d(TAG, "Interstitial Ad failed: ${error.message}")
-                }
-            }
-        )
-    }
-
-    /**
-     * Show interstitial ad (e.g., when a session stops).
-     * Returns true if an ad was shown, false if none available.
-     */
-    fun showInterstitial(activity: Activity): Boolean {
-        val ad = interstitialAd ?: run {
-            loadInterstitialAd(activity)
-            return false
-        }
-
-        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-            override fun onAdDismissedFullScreenContent() {
-                interstitialAd = null
-                isShowingAd = false
-                loadInterstitialAd(activity)
-            }
-            override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                interstitialAd = null
-                isShowingAd = false
-                loadInterstitialAd(activity)
-            }
-            override fun onAdShowedFullScreenContent() {
-                isShowingAd = true
-            }
-        }
-
-        isShowingAd = true
-        ad.show(activity)
-        return true
-    }
-
-    // ===== Lifecycle Callbacks =====
-
+    // ActivityLifecycleCallbacks — show app open ad when app comes to foreground
     override fun onActivityStarted(activity: Activity) {
         currentActivity = activity
         showAppOpenIfAvailable(activity)
