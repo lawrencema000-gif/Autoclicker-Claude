@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdsClick
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -97,7 +98,8 @@ class MainActivity : ComponentActivity() {
         val tabs = listOf(
             Triple("Clicker", Icons.Default.AdsClick, 0),
             Triple("Scripts", Icons.Default.Description, 1),
-            Triple("Settings", Icons.Default.Settings, 2)
+            Triple("History", Icons.Default.History, 2),
+            Triple("Settings", Icons.Default.Settings, 3)
         )
 
         Scaffold(
@@ -124,7 +126,8 @@ class MainActivity : ComponentActivity() {
                         onImport = { importLauncher.launch("application/json") },
                         onExport = { profile -> exportProfile(profile) }
                     )
-                    2 -> SettingsScreen(
+                    2 -> HistoryScreen(vm)
+                    3 -> SettingsScreen(
                         vm = vm,
                         onOpenAccessibility = { openAccessibilitySettings() },
                         onRequestBattery = { requestBatteryOptimization() }

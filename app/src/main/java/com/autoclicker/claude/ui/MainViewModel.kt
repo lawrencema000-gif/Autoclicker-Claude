@@ -8,6 +8,13 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+data class HistoryEntry(
+    val profileName: String,
+    val totalTaps: Int,
+    val durationMs: Long,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = ProfileRepository(app)
@@ -36,6 +43,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _customPatternPoints = MutableStateFlow<List<ClickPoint>>(emptyList())
     val customPatternPoints: StateFlow<List<ClickPoint>> = _customPatternPoints.asStateFlow()
 
+    private val _history = MutableStateFlow<List<HistoryEntry>>(emptyList())
+    val history: StateFlow<List<HistoryEntry>> = _history.asStateFlow()
+
     init {
         // Auto-complete onboarding when service connects
         viewModelScope.launch {
@@ -61,6 +71,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     )
                     _quickStartPoints.value = _quickStartPoints.value + point
                 }
+            }
+        }
+
+        // Log to history when session stops
+        viewModelScope.launch {
+            var prevState = RunState.IDLE
+            runState.collect { state ->
+                if (prevState == RunState.RUNNING && state == RunState.IDLE) {
+                    val s = stats.value
+                    if (s.totalTaps > 0) {
+                        _history.value = listOf(HistoryEntry(s.profileName.ifBlank { "Quick Session" }, s.totalTaps, s.elapsedMs)) + _history.value.take(49)
+                    }
+                }
+                prevState = state
             }
         }
 

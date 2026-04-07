@@ -212,9 +212,33 @@ fun SettingsScreen(
             }
         }
 
-        // ===== TAP RANDOMIZATION =====
-        Text("TAP RANDOMIZATION", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // ===== TAP RANDOMIZATION (Advanced) =====
+        var showAdvanced by remember { mutableStateOf(false) }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("ADVANCED", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = { showAdvanced = !showAdvanced }) {
+                Text(if (showAdvanced) "Hide" else "Show", style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    if (showAdvanced) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    null, modifier = Modifier.size(16.dp)
+                )
+            }
+        }
 
+        if (!showAdvanced) {
+            Text(
+                "Anti-detection, timing jitter, and humanization options",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+
+        if (showAdvanced) {
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             shape = RoundedCornerShape(16.dp)
@@ -299,6 +323,7 @@ fun SettingsScreen(
                 )
             }
         }
+        } // end if (showAdvanced)
 
         // ===== ACCESSIBILITY SERVICE =====
         Card(
