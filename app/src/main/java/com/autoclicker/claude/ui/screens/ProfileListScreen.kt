@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +30,9 @@ fun ProfileListScreen(
     val serviceConnected by vm.serviceConnected.collectAsState()
 
     val sorted = profiles.sortedByDescending { it.updatedAt }
+    val categories = sorted.map { it.category.ifBlank { "Uncategorized" } }.distinct()
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    val filtered = if (selectedCategory == null) sorted else sorted.filter { (it.category.ifBlank { "Uncategorized" }) == selectedCategory }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (sorted.isEmpty()) {
@@ -74,7 +78,19 @@ fun ProfileListScreen(
                     )
                 }
 
-                items(sorted, key = { it.id }) { profile ->
+                // Category filter chips
+                if (categories.size > 1) {
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(selected = selectedCategory == null, onClick = { selectedCategory = null }, label = { Text("All") })
+                            categories.forEach { cat ->
+                                FilterChip(selected = selectedCategory == cat, onClick = { selectedCategory = if (selectedCategory == cat) null else cat }, label = { Text(cat) })
+                            }
+                        }
+                    }
+                }
+
+                items(filtered, key = { it.id }) { profile ->
                     ProfileCard(
                         profile = profile,
                         canPlay = serviceConnected && runState == RunState.IDLE && profile.steps.isNotEmpty(),
@@ -133,7 +149,7 @@ private fun ProfileCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    "${when (profile.mode) { ClickMode.SINGLE_POINT -> "Single"; ClickMode.MULTI_POINT -> "Multi"; ClickMode.PATTERN_MODE -> "Pattern" }} • ${profile.steps.size} steps • ${profile.intervalMs}ms",
+                    "${when (profile.mode) { ClickMode.SINGLE_POINT -> "Single"; ClickMode.MULTI_POINT -> "Multi"; ClickMode.PATTERN_MODE -> "Pattern"; ClickMode.RECORD_MODE -> "Recorded" }} • ${profile.steps.size} steps • ${profile.intervalMs}ms",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

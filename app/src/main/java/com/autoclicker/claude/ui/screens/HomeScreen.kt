@@ -91,6 +91,7 @@ fun HomeScreen(vm: MainViewModel) {
             ModeChip("Single Tap", Icons.Default.AdsClick, selectedMode == ClickMode.SINGLE_POINT, { vm.setSelectedMode(ClickMode.SINGLE_POINT) }, Modifier.weight(1f))
             ModeChip("Multi Tap", Icons.Default.GridView, selectedMode == ClickMode.MULTI_POINT, { vm.setSelectedMode(ClickMode.MULTI_POINT) }, Modifier.weight(1f))
             ModeChip("Pattern", Icons.Default.AutoAwesome, selectedMode == ClickMode.PATTERN_MODE, { vm.setSelectedMode(ClickMode.PATTERN_MODE) }, Modifier.weight(1f))
+            ModeChip("Record", Icons.Default.FiberManualRecord, selectedMode == ClickMode.RECORD_MODE, { vm.setSelectedMode(ClickMode.RECORD_MODE) }, Modifier.weight(1f))
         }
 
         // Mode description
@@ -98,6 +99,7 @@ fun HomeScreen(vm: MainViewModel) {
             ClickMode.SINGLE_POINT -> "Tap START, then pick one point on screen. Clicks repeat at that spot."
             ClickMode.MULTI_POINT -> "Tap START, pick multiple points, press DONE. Clicks cycle through each point."
             ClickMode.PATTERN_MODE -> "Choose a pattern shape below. Clicks follow the pattern automatically."
+            ClickMode.RECORD_MODE -> "Tap START, then perform taps and swipes. Press DONE to save and replay."
         }
         Text(modeHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 

@@ -74,6 +74,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
+        // Handle gesture recording results
+        viewModelScope.launch {
+            CommandBus.recordingResults.collect { steps ->
+                if (steps.isNotEmpty()) {
+                    val profile = TapProfile(
+                        name = "Recorded ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}",
+                        mode = ClickMode.MULTI_POINT,
+                        steps = steps,
+                        intervalMs = defaultSettings.value.intervalMs,
+                        antiDetection = defaultSettings.value.antiDetection
+                    )
+                    repo.addProfile(profile)
+                    CommandBus.send(TapCommand.StartProfile(profile))
+                }
+            }
+        }
+
         // Log to history when session stops
         viewModelScope.launch {
             var prevState = RunState.IDLE
@@ -151,6 +168,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun quickStart() {
         val mode = _selectedMode.value
+
+        if (mode == ClickMode.RECORD_MODE) {
+            CommandBus.send(TapCommand.EnterRecordMode)
+            return
+        }
 
         if (mode == ClickMode.PATTERN_MODE) {
             val config = _patternConfig.value

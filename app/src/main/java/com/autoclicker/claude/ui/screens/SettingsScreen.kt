@@ -325,6 +325,49 @@ fun SettingsScreen(
         }
         } // end if (showAdvanced)
 
+        // ===== QUICK CONTROLS =====
+        Text("QUICK CONTROLS", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        // Floating Bubble
+        val bubbleEnabled by CommandBus.bubbleEnabled.collectAsState()
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Circle, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Floating Bubble", fontWeight = FontWeight.SemiBold)
+                    Text("Quick play/pause from any app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = bubbleEnabled, onCheckedChange = { CommandBus.setBubbleEnabled(it) })
+            }
+        }
+
+        // ===== VOLUME BUTTON TRIGGER =====
+        val volumeEnabled by CommandBus.volumeTriggerEnabled.collectAsState()
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.VolumeUp, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Volume Button Trigger", fontWeight = FontWeight.SemiBold)
+                    Text("Vol Up = Start/Pause, Vol Down = Stop", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = volumeEnabled, onCheckedChange = { CommandBus.setVolumeTriggerEnabled(it) })
+            }
+        }
+
         // ===== ACCESSIBILITY SERVICE =====
         Card(
             colors = CardDefaults.cardColors(

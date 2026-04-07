@@ -84,6 +84,7 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                             com.autoclicker.claude.data.ClickMode.SINGLE_POINT -> "Single Point"
                             com.autoclicker.claude.data.ClickMode.MULTI_POINT -> "Multi Point"
                             com.autoclicker.claude.data.ClickMode.PATTERN_MODE -> "Pattern (${profile.patternConfig?.type?.name ?: "Circle"})"
+                            com.autoclicker.claude.data.ClickMode.RECORD_MODE -> "Recorded Gesture"
                         }}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

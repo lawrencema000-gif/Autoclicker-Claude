@@ -8,9 +8,13 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Path
 import android.os.Build
+import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import com.autoclicker.claude.data.*
+import com.autoclicker.claude.overlay.CountdownOverlay
+import com.autoclicker.claude.overlay.FloatingBubbleManager
 import com.autoclicker.claude.overlay.FloatingToolbarManager
+import com.autoclicker.claude.overlay.GestureRecorderOverlay
 import com.autoclicker.claude.overlay.PickOverlayManager
 import com.autoclicker.claude.util.AntiDetection
 import com.autoclicker.claude.util.PatternGenerator
@@ -35,6 +39,9 @@ class AutoClickService : AccessibilityService() {
 
     private var pickOverlay: PickOverlayManager? = null
     private var floatingToolbar: FloatingToolbarManager? = null
+    private var floatingBubble: FloatingBubbleManager? = null
+    private var gestureRecorder: GestureRecorderOverlay? = null
+    private var countdownOverlay: CountdownOverlay? = null
     private var screenOffReceiver: BroadcastReceiver? = null
 
     override fun onServiceConnected() {
@@ -43,6 +50,16 @@ class AutoClickService : AccessibilityService() {
 
         pickOverlay = PickOverlayManager(this)
         floatingToolbar = FloatingToolbarManager(this)
+        floatingBubble = FloatingBubbleManager(this)
+        gestureRecorder = GestureRecorderOverlay(this)
+        countdownOverlay = CountdownOverlay(this)
+
+        // Show/hide bubble based on setting
+        scope.launch {
+            CommandBus.bubbleEnabled.collect { enabled ->
+                if (enabled) floatingBubble?.show() else floatingBubble?.dismiss()
+            }
+        }
 
         scope.launch {
             CommandBus.commands.collect { cmd ->
@@ -67,6 +84,9 @@ class AutoClickService : AccessibilityService() {
                     is TapCommand.Resume -> resumeExecution()
                     is TapCommand.EnterPickMode -> pickOverlay?.show(cmd.multiPick)
                     is TapCommand.ExitPickMode -> { /* handled by PickOverlayManager */ }
+                    is TapCommand.EnterRecordMode -> gestureRecorder?.show { steps ->
+                        CommandBus.emitRecordingResult(steps)
+                    }
                 }
             }
         }
@@ -75,10 +95,40 @@ class AutoClickService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() { stopExecution() }
 
+    override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (!CommandBus.volumeTriggerEnabled.value) return super.onKeyEvent(event)
+        if (event.action != KeyEvent.ACTION_DOWN) return super.onKeyEvent(event)
+
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP -> {
+                // Volume Up = Start/Resume or Pause
+                when (CommandBus.runState.value) {
+                    RunState.IDLE -> {
+                        // Re-run last profile if available
+                        CommandBus.lastProfile.value?.let { startProfile(it) }
+                            ?: return super.onKeyEvent(event)
+                    }
+                    RunState.RUNNING -> pauseExecution()
+                    RunState.PAUSED -> resumeExecution()
+                }
+                return true // consume the key event
+            }
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                // Volume Down = Stop
+                if (CommandBus.runState.value != RunState.IDLE) {
+                    stopExecution()
+                    return true
+                }
+            }
+        }
+        return super.onKeyEvent(event)
+    }
+
     override fun onUnbind(intent: Intent?): Boolean {
         stopExecution()
         pickOverlay?.dismiss()
         floatingToolbar?.dismiss()
+        floatingBubble?.dismiss()
         CommandBus.setServiceConnected(false)
         scope.cancel()
         return super.onUnbind(intent)
@@ -89,6 +139,7 @@ class AutoClickService : AccessibilityService() {
         stopExecution()
         pickOverlay?.dismiss()
         floatingToolbar?.dismiss()
+        floatingBubble?.dismiss()
         CommandBus.setServiceConnected(false)
         scope.cancel()
     }
@@ -103,6 +154,7 @@ class AutoClickService : AccessibilityService() {
         lastTapY = -1f
 
         val anti = profile.antiDetection
+        AntiDetection.resetSession()
 
         // Generate pattern steps if pattern mode
         val metrics = resources.displayMetrics
@@ -119,6 +171,7 @@ class AutoClickService : AccessibilityService() {
         val effectiveProfile = profile.copy(steps = steps)
 
         CommandBus.setRunState(RunState.RUNNING)
+        CommandBus.setLastProfile(effectiveProfile)
         CommandBus.updateStats(ExecutionStats(profileName = profile.name))
 
         if (profile.rules.stopOnScreenOff) {
@@ -130,6 +183,9 @@ class AutoClickService : AccessibilityService() {
 
         executionJob = scope.launch {
             try {
+                // 3-second countdown overlay
+                countdownOverlay?.showCountdown(3) {}
+
                 if (effectiveProfile.rules.startDelayMs > 0) {
                     delay(effectiveProfile.rules.startDelayMs)
                 }
@@ -247,12 +303,14 @@ class AutoClickService : AccessibilityService() {
         TapForegroundService.stop(this)
 
         CommandBus.setRunState(RunState.IDLE)
+        floatingBubble?.refresh()
     }
 
     private fun pauseExecution() {
         paused.set(true)
         CommandBus.setRunState(RunState.PAUSED)
         floatingToolbar?.refresh()
+        floatingBubble?.refresh()
         TapForegroundService.updateState(this, CommandBus.stats.value.profileName, true)
     }
 
@@ -260,6 +318,7 @@ class AutoClickService : AccessibilityService() {
         paused.set(false)
         CommandBus.setRunState(RunState.RUNNING)
         floatingToolbar?.refresh()
+        floatingBubble?.refresh()
         TapForegroundService.updateState(this, CommandBus.stats.value.profileName, false)
     }
 

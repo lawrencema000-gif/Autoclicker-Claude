@@ -14,7 +14,8 @@ enum class ActionType {
 enum class ClickMode {
     @SerializedName("single") SINGLE_POINT,
     @SerializedName("multi") MULTI_POINT,
-    @SerializedName("pattern") PATTERN_MODE
+    @SerializedName("pattern") PATTERN_MODE,
+    @SerializedName("record") RECORD_MODE
 }
 
 enum class StopCondition {
@@ -129,6 +130,7 @@ data class TapProfile(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "New Script",
     val description: String = "",
+    val category: String = "",
     val mode: ClickMode = ClickMode.SINGLE_POINT,
     val steps: List<ClickPoint> = emptyList(),
     val intervalMs: Long = 100L,

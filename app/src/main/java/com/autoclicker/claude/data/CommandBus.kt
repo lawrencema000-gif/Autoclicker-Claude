@@ -18,6 +18,7 @@ sealed class TapCommand {
     data object Resume : TapCommand()
     data class EnterPickMode(val multiPick: Boolean = false) : TapCommand()
     data object ExitPickMode : TapCommand()
+    data object EnterRecordMode : TapCommand()
 }
 
 data class PickResult(val x: Float, val y: Float)
@@ -28,6 +29,9 @@ object CommandBus {
 
     private val _pickResults = MutableSharedFlow<PickResult>(extraBufferCapacity = 10)
     val pickResults = _pickResults.asSharedFlow()
+
+    private val _recordingResults = MutableSharedFlow<List<ClickPoint>>(extraBufferCapacity = 5)
+    val recordingResults = _recordingResults.asSharedFlow()
 
     private val _runState = MutableStateFlow(RunState.IDLE)
     val runState: StateFlow<RunState> = _runState.asStateFlow()
@@ -41,10 +45,23 @@ object CommandBus {
     private val _pickModeActive = MutableStateFlow(false)
     val pickModeActive: StateFlow<Boolean> = _pickModeActive.asStateFlow()
 
+    private val _volumeTriggerEnabled = MutableStateFlow(false)
+    val volumeTriggerEnabled: StateFlow<Boolean> = _volumeTriggerEnabled.asStateFlow()
+
+    private val _bubbleEnabled = MutableStateFlow(false)
+    val bubbleEnabled: StateFlow<Boolean> = _bubbleEnabled.asStateFlow()
+
+    private val _lastProfile = MutableStateFlow<TapProfile?>(null)
+    val lastProfile: StateFlow<TapProfile?> = _lastProfile.asStateFlow()
+
     fun send(command: TapCommand) { _commands.tryEmit(command) }
     fun emitPickResult(x: Float, y: Float) { _pickResults.tryEmit(PickResult(x, y)) }
+    fun emitRecordingResult(steps: List<ClickPoint>) { _recordingResults.tryEmit(steps) }
     fun setRunState(state: RunState) { _runState.value = state }
     fun updateStats(stats: ExecutionStats) { _stats.value = stats }
     fun setServiceConnected(value: Boolean) { _serviceConnected.value = value }
     fun setPickModeActive(value: Boolean) { _pickModeActive.value = value }
+    fun setVolumeTriggerEnabled(value: Boolean) { _volumeTriggerEnabled.value = value }
+    fun setBubbleEnabled(value: Boolean) { _bubbleEnabled.value = value }
+    fun setLastProfile(profile: TapProfile?) { _lastProfile.value = profile }
 }
