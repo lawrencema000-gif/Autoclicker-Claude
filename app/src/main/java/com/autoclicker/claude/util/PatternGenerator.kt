@@ -11,8 +11,8 @@ import kotlin.random.Random
 
 object PatternGenerator {
 
-    fun generate(config: PatternConfig, intervalMs: Long, holdMs: Long): List<ClickPoint> {
-        return when (config.type) {
+    fun generate(config: PatternConfig, intervalMs: Long, holdMs: Long, screenWidth: Float = 1080f, screenHeight: Float = 2400f): List<ClickPoint> {
+        val raw = when (config.type) {
             PatternType.CIRCLE -> generateCircle(config, intervalMs, holdMs)
             PatternType.ZIGZAG -> generateZigzag(config, intervalMs, holdMs)
             PatternType.GRID -> generateGrid(config, intervalMs, holdMs)
@@ -22,6 +22,13 @@ object PatternGenerator {
             PatternType.CUSTOM -> config.customPoints.mapIndexed { i, pt ->
                 pt.copy(delayBefore = intervalMs, holdDuration = holdMs, order = i)
             }
+        }
+        // Clamp all points to screen bounds
+        return raw.map { pt ->
+            pt.copy(
+                x = pt.x.coerceIn(0f, screenWidth),
+                y = pt.y.coerceIn(0f, screenHeight)
+            )
         }
     }
 

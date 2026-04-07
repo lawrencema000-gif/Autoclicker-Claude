@@ -63,8 +63,12 @@ class PickOverlayManager(private val service: AccessibilityService) {
                         }
                     }
 
-                    pickedPoints.add(Pair(x, y))
-                    CommandBus.emitPickResult(x, y)
+                    // Clamp coordinates to screen bounds
+                    val metrics = service.resources.displayMetrics
+                    val cx = x.coerceIn(0f, metrics.widthPixels.toFloat())
+                    val cy = y.coerceIn(0f, metrics.heightPixels.toFloat())
+                    pickedPoints.add(Pair(cx, cy))
+                    CommandBus.emitPickResult(cx, cy)
                     currentTouch = null
 
                     if (!multiPick) {
@@ -157,6 +161,12 @@ class PickOverlayManager(private val service: AccessibilityService) {
             isAntiAlias = true
             isFakeBoldText = true
         }
+        private val instrPaint = Paint().apply {
+            color = Color.parseColor("#CCFFFFFF")
+            textSize = 30f
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
@@ -198,12 +208,6 @@ class PickOverlayManager(private val service: AccessibilityService) {
             // Instruction text
             val instrText = if (multiPick) "Tap to add points, press DONE when finished"
             else "Tap anywhere to select a point"
-            val instrPaint = Paint().apply {
-                color = Color.parseColor("#CCFFFFFF")
-                textSize = 30f
-                textAlign = Paint.Align.CENTER
-                isAntiAlias = true
-            }
             canvas.drawText(instrText, width / 2f, 100f, instrPaint)
         }
     }

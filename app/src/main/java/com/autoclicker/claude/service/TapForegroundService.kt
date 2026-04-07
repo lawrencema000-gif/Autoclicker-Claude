@@ -24,6 +24,8 @@ class TapForegroundService : Service() {
         private const val ACTION_RESUME = "com.autoclicker.claude.ACTION_RESUME"
         private const val EXTRA_PROFILE_NAME = "profile_name"
         private const val EXTRA_IS_PAUSED = "is_paused"
+        private const val EXTRA_TAP_COUNT = "tap_count"
+        private const val EXTRA_ELAPSED_MS = "elapsed_ms"
 
         fun start(context: Context, profileName: String = "") {
             val intent = Intent(context, TapForegroundService::class.java).apply {
@@ -44,12 +46,24 @@ class TapForegroundService : Service() {
             context.startService(intent)
         }
 
+        fun updateStats(context: Context, profileName: String, tapCount: Int, elapsedMs: Long) {
+            val intent = Intent(context, TapForegroundService::class.java).apply {
+                putExtra(EXTRA_PROFILE_NAME, profileName)
+                putExtra(EXTRA_TAP_COUNT, tapCount)
+                putExtra(EXTRA_ELAPSED_MS, elapsedMs)
+            }
+            context.startService(intent)
+        }
+
         fun stop(context: Context) {
             context.stopService(Intent(context, TapForegroundService::class.java))
         }
     }
 
     private var profileName = ""
+    private var tapCount = 0
+    private var elapsedMs = 0L
+    private var isPaused = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -82,7 +96,9 @@ class TapForegroundService : Service() {
         }
 
         profileName = intent.getStringExtra(EXTRA_PROFILE_NAME) ?: ""
-        val isPaused = intent.getBooleanExtra(EXTRA_IS_PAUSED, false)
+        isPaused = intent.getBooleanExtra(EXTRA_IS_PAUSED, false)
+        tapCount = intent.getIntExtra(EXTRA_TAP_COUNT, tapCount)
+        elapsedMs = intent.getLongExtra(EXTRA_ELAPSED_MS, elapsedMs)
 
         startForeground(NOTIFICATION_ID, buildNotification(isPaused))
         return START_STICKY
@@ -128,7 +144,11 @@ class TapForegroundService : Service() {
         }
 
         val title = if (profileName.isNotBlank()) "AutoClicker: $profileName" else "AutoClicker Running"
-        val text = if (isPaused) "Paused — tap Resume to continue" else "Tapping in progress"
+        val elapsed = elapsedMs / 1000
+        val timeStr = if (elapsed >= 3600) String.format("%d:%02d:%02d", elapsed / 3600, (elapsed % 3600) / 60, elapsed % 60)
+        else String.format("%d:%02d", elapsed / 60, elapsed % 60)
+        val text = if (isPaused) "Paused — tap Resume to continue"
+        else "$tapCount taps • $timeStr"
 
         return Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(title)

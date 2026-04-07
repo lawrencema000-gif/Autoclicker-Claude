@@ -14,13 +14,18 @@ import com.autoclicker.claude.overlay.FloatingToolbarManager
 import com.autoclicker.claude.overlay.PickOverlayManager
 import com.autoclicker.claude.util.AntiDetection
 import com.autoclicker.claude.util.PatternGenerator
+import android.util.Log
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 
 class AutoClickService : AccessibilityService() {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e("AutoClickService", "Execution error", throwable)
+        stopExecution()
+    }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + exceptionHandler)
     private var executionJob: Job? = null
     private val paused = AtomicBoolean(false)
     private var tapCount = 0
@@ -100,10 +105,13 @@ class AutoClickService : AccessibilityService() {
         val anti = profile.antiDetection
 
         // Generate pattern steps if pattern mode
+        val metrics = resources.displayMetrics
         val steps = if (profile.mode == ClickMode.PATTERN_MODE && profile.patternConfig != null) {
-            PatternGenerator.generate(profile.patternConfig, profile.intervalMs, profile.rules.let {
-                profile.intervalMs // use interval as hold fallback
-            }).map { it.copy(holdDuration = 50L) }
+            PatternGenerator.generate(
+                profile.patternConfig, profile.intervalMs,
+                profile.intervalMs, // hold fallback
+                metrics.widthPixels.toFloat(), metrics.heightPixels.toFloat()
+            ).map { it.copy(holdDuration = 50L) }
         } else {
             profile.steps
         }
@@ -189,16 +197,21 @@ class AutoClickService : AccessibilityService() {
                                 }
                             }
 
+                            val currentElapsed = System.currentTimeMillis() - startTimeMs
                             CommandBus.updateStats(
                                 ExecutionStats(
                                     totalTaps = tapCount,
-                                    elapsedMs = System.currentTimeMillis() - startTimeMs,
+                                    elapsedMs = currentElapsed,
                                     currentStep = stepIdx + 1,
                                     currentLoop = loop,
                                     profileName = effectiveProfile.name
                                 )
                             )
                             floatingToolbar?.refresh()
+                            // Update notification every 10 taps
+                            if (tapCount % 10 == 0) {
+                                TapForegroundService.updateStats(this@AutoClickService, effectiveProfile.name, tapCount, currentElapsed)
+                            }
 
                             if (rep < step.repeatCount - 1) {
                                 val interRepeat = AntiDetection.jitterInterval(effectiveProfile.intervalMs, anti)
@@ -257,6 +270,8 @@ class AutoClickService : AccessibilityService() {
     private fun shouldStop(rules: ClickRule): Boolean {
         if (rules.maxTaps > 0 && tapCount >= rules.maxTaps) return true
         if (rules.maxDurationMs > 0 && (System.currentTimeMillis() - startTimeMs) >= rules.maxDurationMs) return true
+        // Safety timeout: 4 hours max to prevent runaway sessions
+        if ((System.currentTimeMillis() - startTimeMs) >= 4 * 60 * 60 * 1000L) return true
         return false
     }
 
@@ -269,7 +284,9 @@ class AutoClickService : AccessibilityService() {
     }
 
     private suspend fun dispatchTap(x: Float, y: Float, durationMs: Long) {
-        val path = Path().apply { moveTo(x, y) }
+        val safeX = x.coerceAtLeast(0f)
+        val safeY = y.coerceAtLeast(0f)
+        val path = Path().apply { moveTo(safeX, safeY) }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs.coerceAtLeast(1L)))
             .build()

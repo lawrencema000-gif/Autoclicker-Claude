@@ -192,15 +192,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun updateEditingName(name: String) {
-        _editingProfile.value = _editingProfile.value?.copy(name = name)
+        _editingProfile.value = _editingProfile.value?.copy(name = name.take(50))
     }
 
     fun updateEditingInterval(interval: Long) {
-        _editingProfile.value = _editingProfile.value?.copy(intervalMs = interval)
+        _editingProfile.value = _editingProfile.value?.copy(intervalMs = interval.coerceAtLeast(1L))
     }
 
     fun updateEditingLoopCount(count: Int) {
-        _editingProfile.value = _editingProfile.value?.copy(loopCount = count)
+        _editingProfile.value = _editingProfile.value?.copy(loopCount = count.coerceAtLeast(0))
     }
 
     fun addStepToEditing(step: ClickPoint) {
