@@ -21,6 +21,10 @@ class ProfileRepository(private val context: Context) {
     private val defaultSettingsKey = stringPreferencesKey("default_settings_json")
     private val lastProfileKey = stringPreferencesKey("last_profile_id")
     private val onboardingKey = booleanPreferencesKey("onboarding_complete")
+    private val sessionModeKey = stringPreferencesKey("session_mode")
+    private val sessionPatternConfigKey = stringPreferencesKey("session_pattern_config")
+    private val sessionCustomPointsKey = stringPreferencesKey("session_custom_points")
+    private val lastProfileJsonKey = stringPreferencesKey("last_profile_json")
 
     val profiles: Flow<List<TapProfile>> = context.dataStore.data.map { prefs ->
         val json = prefs[profilesKey] ?: "[]"
@@ -111,6 +115,43 @@ class ProfileRepository(private val context: Context) {
         )
         addProfile(imported)
         return imported
+    }
+
+    // Session state persistence
+    suspend fun saveSessionState(mode: ClickMode, patternConfig: PatternConfig, customPoints: List<ClickPoint>) {
+        context.dataStore.edit { prefs ->
+            prefs[sessionModeKey] = gson.toJson(mode)
+            prefs[sessionPatternConfigKey] = gson.toJson(patternConfig)
+            prefs[sessionCustomPointsKey] = gson.toJson(customPoints)
+        }
+    }
+
+    fun getSessionMode(): Flow<ClickMode> = context.dataStore.data.map { prefs ->
+        val json = prefs[sessionModeKey]
+        if (json != null) gson.fromJson(json, ClickMode::class.java) else ClickMode.SINGLE_POINT
+    }
+
+    fun getSessionPatternConfig(): Flow<PatternConfig> = context.dataStore.data.map { prefs ->
+        val json = prefs[sessionPatternConfigKey]
+        if (json != null) gson.fromJson(json, PatternConfig::class.java) else PatternConfig()
+    }
+
+    fun getSessionCustomPoints(): Flow<List<ClickPoint>> = context.dataStore.data.map { prefs ->
+        val json = prefs[sessionCustomPointsKey]
+        if (json != null) {
+            val type = object : TypeToken<List<ClickPoint>>() {}.type
+            gson.fromJson(json, type)
+        } else emptyList()
+    }
+
+    // Last profile persistence (for volume trigger after restart)
+    suspend fun saveLastProfile(profile: TapProfile) {
+        context.dataStore.edit { it[lastProfileJsonKey] = gson.toJson(profile) }
+    }
+
+    fun getLastProfile(): Flow<TapProfile?> = context.dataStore.data.map { prefs ->
+        val json = prefs[lastProfileJsonKey]
+        if (json != null) gson.fromJson(json, TapProfile::class.java) else null
     }
 
     private fun loadProfiles(prefs: Preferences): MutableList<TapProfile> {

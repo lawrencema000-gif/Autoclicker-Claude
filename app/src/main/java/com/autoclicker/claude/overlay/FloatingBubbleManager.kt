@@ -43,11 +43,14 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
             y = service.resources.displayMetrics.heightPixels / 2
         }
 
+        var touchDownTime = 0L
+
         view.setOnTouchListener { v, event ->
             val p = layoutParams ?: return@setOnTouchListener true
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     isDragging = false
+                    touchDownTime = System.currentTimeMillis()
                     dragStartX = event.rawX; dragStartY = event.rawY
                     dragStartParamX = p.x; dragStartParamY = p.y
                 }
@@ -60,12 +63,18 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
                     }
                 }
                 MotionEvent.ACTION_UP -> {
+                    val holdDuration = System.currentTimeMillis() - touchDownTime
                     if (!isDragging) {
-                        // Toggle: if idle, re-run last profile; if running, stop
-                        when (CommandBus.runState.value) {
-                            RunState.IDLE -> CommandBus.lastProfile.value?.let { CommandBus.send(TapCommand.StartProfile(it)) }
-                            RunState.RUNNING -> CommandBus.send(TapCommand.Pause)
-                            RunState.PAUSED -> CommandBus.send(TapCommand.Resume)
+                        if (holdDuration >= 500) {
+                            // Long press: enter pick mode
+                            CommandBus.send(TapCommand.EnterPickMode(true))
+                        } else {
+                            // Short tap: toggle play/pause or re-run
+                            when (CommandBus.runState.value) {
+                                RunState.IDLE -> CommandBus.lastProfile.value?.let { CommandBus.send(TapCommand.StartProfile(it)) }
+                                RunState.RUNNING -> CommandBus.send(TapCommand.Pause)
+                                RunState.PAUSED -> CommandBus.send(TapCommand.Resume)
+                            }
                         }
                         view.invalidate()
                     }

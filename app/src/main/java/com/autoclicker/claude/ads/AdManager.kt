@@ -30,9 +30,12 @@ object AdManager : Application.ActivityLifecycleCallbacks {
     val bannerAdUnitId: String
         get() = if (BuildConfig.DEBUG) BANNER_AD_UNIT_TEST else BANNER_AD_UNIT_PROD
 
+    private const val AD_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes between app open ads
+
     private var appOpenAd: AppOpenAd? = null
     private var isLoadingAppOpen = false
     private var isShowingAd = false
+    private var lastAdShownTime = 0L
     var isInitialized = false
         private set
     private var currentActivity: Activity? = null
@@ -83,6 +86,7 @@ object AdManager : Application.ActivityLifecycleCallbacks {
             }
             override fun onAdShowedFullScreenContent() {
                 isShowingAd = true
+                lastAdShownTime = System.currentTimeMillis()
             }
         }
         ad.show(activity)
@@ -91,7 +95,10 @@ object AdManager : Application.ActivityLifecycleCallbacks {
     // ActivityLifecycleCallbacks — show app open ad when app comes to foreground
     override fun onActivityStarted(activity: Activity) {
         currentActivity = activity
-        showAppOpenIfAvailable(activity)
+        val now = System.currentTimeMillis()
+        if (now - lastAdShownTime >= AD_COOLDOWN_MS) {
+            showAppOpenIfAvailable(activity)
+        }
     }
     override fun onActivityResumed(activity: Activity) { currentActivity = activity }
     override fun onActivityPaused(activity: Activity) {}

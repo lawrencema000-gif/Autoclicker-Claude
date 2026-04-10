@@ -16,6 +16,7 @@ import com.autoclicker.claude.overlay.FloatingBubbleManager
 import com.autoclicker.claude.overlay.FloatingToolbarManager
 import com.autoclicker.claude.overlay.GestureRecorderOverlay
 import com.autoclicker.claude.overlay.PickOverlayManager
+import com.autoclicker.claude.overlay.ProfilePickerOverlay
 import com.autoclicker.claude.util.AntiDetection
 import com.autoclicker.claude.util.PatternGenerator
 import android.util.Log
@@ -42,7 +43,12 @@ class AutoClickService : AccessibilityService() {
     private var floatingBubble: FloatingBubbleManager? = null
     private var gestureRecorder: GestureRecorderOverlay? = null
     private var countdownOverlay: CountdownOverlay? = null
+    private var profilePicker: ProfilePickerOverlay? = null
     private var screenOffReceiver: BroadcastReceiver? = null
+
+    // Service-side pick flow (works when UI is not active)
+    private val serviceSidePickPoints = mutableListOf<ClickPoint>()
+    private var serviceSidePickActive = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -53,6 +59,9 @@ class AutoClickService : AccessibilityService() {
         floatingBubble = FloatingBubbleManager(this)
         gestureRecorder = GestureRecorderOverlay(this)
         countdownOverlay = CountdownOverlay(this)
+        profilePicker = ProfilePickerOverlay(this) { profile ->
+            startProfile(profile)
+        }
 
         // Show/hide bubble based on setting
         scope.launch {
@@ -82,11 +91,52 @@ class AutoClickService : AccessibilityService() {
                     is TapCommand.Stop -> stopExecution()
                     is TapCommand.Pause -> pauseExecution()
                     is TapCommand.Resume -> resumeExecution()
-                    is TapCommand.EnterPickMode -> pickOverlay?.show(cmd.multiPick)
                     is TapCommand.ExitPickMode -> { /* handled by PickOverlayManager */ }
                     is TapCommand.EnterRecordMode -> gestureRecorder?.show { steps ->
                         CommandBus.emitRecordingResult(steps)
                     }
+                    is TapCommand.ShowProfilePicker -> profilePicker?.show()
+                    is TapCommand.EnterPickMode -> {
+                        // Track for service-side flow
+                        if (!CommandBus.uiActive.value) {
+                            serviceSidePickActive = true
+                            serviceSidePickPoints.clear()
+                        }
+                        pickOverlay?.show(cmd.multiPick)
+                    }
+                }
+            }
+        }
+
+        // Service-side pick result collector (works when UI is backgrounded)
+        scope.launch {
+            CommandBus.pickResults.collect { result ->
+                if (serviceSidePickActive) {
+                    val settings = CommandBus.defaultSettingsState.value
+                    serviceSidePickPoints.add(ClickPoint(
+                        x = result.x, y = result.y,
+                        delayBefore = settings.intervalMs,
+                        holdDuration = settings.holdDurationMs
+                    ))
+                }
+            }
+        }
+
+        // When pick mode ends, start profile from service side if UI is not active
+        scope.launch {
+            CommandBus.pickModeActive.collect { active ->
+                if (!active && serviceSidePickActive && serviceSidePickPoints.isNotEmpty()) {
+                    serviceSidePickActive = false
+                    val settings = CommandBus.defaultSettingsState.value
+                    val profile = TapProfile(
+                        name = "Quick Start",
+                        mode = if (serviceSidePickPoints.size > 1) ClickMode.MULTI_POINT else ClickMode.SINGLE_POINT,
+                        steps = serviceSidePickPoints.toList(),
+                        intervalMs = settings.intervalMs,
+                        antiDetection = settings.antiDetection
+                    )
+                    serviceSidePickPoints.clear()
+                    startProfile(profile)
                 }
             }
         }
@@ -129,6 +179,7 @@ class AutoClickService : AccessibilityService() {
         pickOverlay?.dismiss()
         floatingToolbar?.dismiss()
         floatingBubble?.dismiss()
+        profilePicker?.dismiss()
         CommandBus.setServiceConnected(false)
         scope.cancel()
         return super.onUnbind(intent)
@@ -140,6 +191,7 @@ class AutoClickService : AccessibilityService() {
         pickOverlay?.dismiss()
         floatingToolbar?.dismiss()
         floatingBubble?.dismiss()
+        profilePicker?.dismiss()
         CommandBus.setServiceConnected(false)
         scope.cancel()
     }
@@ -270,13 +322,15 @@ class AutoClickService : AccessibilityService() {
                             }
 
                             if (rep < step.repeatCount - 1) {
-                                val interRepeat = AntiDetection.jitterInterval(effectiveProfile.intervalMs, anti)
+                                val liveInterval = CommandBus.liveIntervalOverride.value.takeIf { it > 0 } ?: effectiveProfile.intervalMs
+                                val interRepeat = AntiDetection.jitterInterval(liveInterval, anti)
                                 delay(interRepeat)
                             }
                         }
 
                         if (stepIdx < effectiveProfile.steps.size - 1) {
-                            val interStep = AntiDetection.jitterInterval(effectiveProfile.intervalMs, anti)
+                            val liveInterval = CommandBus.liveIntervalOverride.value.takeIf { it > 0 } ?: effectiveProfile.intervalMs
+                            val interStep = AntiDetection.jitterInterval(liveInterval, anti)
                             delay(interStep)
                         }
                     }

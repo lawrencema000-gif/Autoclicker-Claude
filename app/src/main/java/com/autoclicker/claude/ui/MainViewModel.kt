@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.autoclicker.claude.data.*
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -15,6 +16,7 @@ data class HistoryEntry(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+@OptIn(FlowPreview::class)
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = ProfileRepository(app)
@@ -47,6 +49,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val history: StateFlow<List<HistoryEntry>> = _history.asStateFlow()
 
     init {
+        CommandBus.setUiActive(true)
+
+        // Restore session state from DataStore
+        viewModelScope.launch {
+            repo.getSessionMode().first().let { _selectedMode.value = it }
+            repo.getSessionPatternConfig().first().let { _patternConfig.value = it }
+            repo.getSessionCustomPoints().first().let { _customPatternPoints.value = it }
+            repo.getLastProfile().first()?.let { CommandBus.setLastProfile(it) }
+        }
+
+        // Auto-save session state with debounce
+        viewModelScope.launch {
+            combine(_selectedMode, _patternConfig, _customPatternPoints) { mode, config, points ->
+                Triple(mode, config, points)
+            }.debounce(500).collect { (mode, config, points) ->
+                repo.saveSessionState(mode, config, points)
+            }
+        }
+
+        // Push default settings to CommandBus so service has them
+        viewModelScope.launch {
+            defaultSettings.collect { settings ->
+                CommandBus.setDefaultSettings(settings)
+            }
+        }
+
         // Auto-complete onboarding when service connects
         viewModelScope.launch {
             serviceConnected.collect { connected ->
@@ -220,6 +248,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun startProfile(profile: TapProfile) {
         viewModelScope.launch {
             repo.setLastProfileId(profile.id)
+            repo.saveLastProfile(profile)
         }
         CommandBus.send(TapCommand.StartProfile(profile))
     }
