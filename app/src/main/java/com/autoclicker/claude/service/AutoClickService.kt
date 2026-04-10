@@ -12,6 +12,7 @@ import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import com.autoclicker.claude.data.*
 import com.autoclicker.claude.overlay.CountdownOverlay
+import com.autoclicker.claude.overlay.CrosshairOverlay
 import com.autoclicker.claude.overlay.FloatingBubbleManager
 import com.autoclicker.claude.overlay.FloatingToolbarManager
 import com.autoclicker.claude.overlay.GestureRecorderOverlay
@@ -21,6 +22,7 @@ import com.autoclicker.claude.util.AntiDetection
 import com.autoclicker.claude.util.PatternGenerator
 import android.util.Log
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.combine
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 
@@ -44,6 +46,7 @@ class AutoClickService : AccessibilityService() {
     private var gestureRecorder: GestureRecorderOverlay? = null
     private var countdownOverlay: CountdownOverlay? = null
     private var profilePicker: ProfilePickerOverlay? = null
+    private var crosshairOverlay: CrosshairOverlay? = null
     private var screenOffReceiver: BroadcastReceiver? = null
 
     // Service-side pick flow (works when UI is not active)
@@ -62,11 +65,18 @@ class AutoClickService : AccessibilityService() {
         profilePicker = ProfilePickerOverlay(this) { profile ->
             startProfile(profile)
         }
+        crosshairOverlay = CrosshairOverlay(this)
 
-        // Show/hide bubble based on setting
+        // Show/hide bubble: show when enabled + (running or UI active), dismiss when idle + app closed
         scope.launch {
-            CommandBus.bubbleEnabled.collect { enabled ->
-                if (enabled) floatingBubble?.show() else floatingBubble?.dismiss()
+            combine(CommandBus.bubbleEnabled, CommandBus.runState, CommandBus.uiActive) { enabled, state, ui ->
+                Triple(enabled, state, ui)
+            }.collect { (enabled, state, uiActive) ->
+                if (enabled && (state != RunState.IDLE || uiActive)) {
+                    floatingBubble?.show()
+                } else {
+                    floatingBubble?.dismiss()
+                }
             }
         }
 
@@ -180,6 +190,7 @@ class AutoClickService : AccessibilityService() {
         floatingToolbar?.dismiss()
         floatingBubble?.dismiss()
         profilePicker?.dismiss()
+        crosshairOverlay?.dismiss()
         CommandBus.setServiceConnected(false)
         scope.cancel()
         return super.onUnbind(intent)
@@ -192,6 +203,7 @@ class AutoClickService : AccessibilityService() {
         floatingToolbar?.dismiss()
         floatingBubble?.dismiss()
         profilePicker?.dismiss()
+        crosshairOverlay?.dismiss()
         CommandBus.setServiceConnected(false)
         scope.cancel()
     }
@@ -231,6 +243,7 @@ class AutoClickService : AccessibilityService() {
         }
 
         floatingToolbar?.show()
+        crosshairOverlay?.show(effectiveProfile.steps)
         TapForegroundService.start(this, profile.name)
 
         executionJob = scope.launch {
@@ -316,6 +329,7 @@ class AutoClickService : AccessibilityService() {
                                 )
                             )
                             floatingToolbar?.refresh()
+                            crosshairOverlay?.updateActiveIndex(stepIdx)
                             // Update notification every 10 taps
                             if (tapCount % 10 == 0) {
                                 TapForegroundService.updateStats(this@AutoClickService, effectiveProfile.name, tapCount, currentElapsed)
@@ -354,6 +368,7 @@ class AutoClickService : AccessibilityService() {
 
         unregisterScreenOffReceiver()
         floatingToolbar?.dismiss()
+        crosshairOverlay?.dismiss()
         TapForegroundService.stop(this)
 
         CommandBus.setRunState(RunState.IDLE)

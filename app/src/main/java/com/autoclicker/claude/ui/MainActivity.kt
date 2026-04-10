@@ -23,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.autoclicker.claude.ads.AdManager
+import com.autoclicker.claude.data.CommandBus
 import com.autoclicker.claude.data.TapProfile
 import com.autoclicker.claude.ui.screens.*
 import com.autoclicker.claude.ui.theme.AutoClickerTheme
@@ -60,6 +61,16 @@ class MainActivity : ComponentActivity() {
                 MainContent(vm)
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        CommandBus.setUiActive(true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        CommandBus.setUiActive(false)
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
