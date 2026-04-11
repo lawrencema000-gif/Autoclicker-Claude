@@ -4,7 +4,22 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Cursor arrow -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M13.64,21.97C13.14,22.21 12.54,22 12.31,21.5L10.13,16.76L7.62,18.78C7.45,18.92 7.24,19 7.02,19C6.44,19 6,18.55 6,17.97V2.97C6,2.39 6.44,1.94 7.02,1.94C7.24,1.94 7.45,2.02 7.62,2.16L19.04,11.59C19.5,11.96 19.5,12.67 19.04,13.04L15.37,16.04L17.55,20.78C17.79,21.28 17.57,21.87 17.07,22.11L13.64,21.97Z" />
+        android:pathData="M7,2 L7,17 L11.5,13.5 L14.5,20 L17,19 L14,12 L19,12 Z" />
+    <!-- Click ripple (outer) -->
+    <path
+        android:pathData="M16,6 A5,5 0,0 1,21,11"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+    <!-- Click ripple (inner) -->
+    <path
+        android:pathData="M14.5,7 A3,3 0,0 1,18,10.5"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
 </vector>
