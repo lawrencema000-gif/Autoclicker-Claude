@@ -406,32 +406,9 @@ private fun formatElapsed(ms: Long): String {
 }
 
 private fun triggerHaptic(context: android.content.Context) {
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vm = context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-            vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            @Suppress("DEPRECATION")
-            val v = context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as Vibrator
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                v.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
-            }
-        }
-    } catch (_: Exception) {}
+    com.autoclicker.claude.ui.components.Haptics.trigger(context, com.autoclicker.claude.ui.components.HapticType.TAP)
 }
 
 private fun triggerHapticError(context: android.content.Context) {
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vm = context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-            // Double-pulse pattern to signal rejection
-            vm.defaultVibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 40, 80, 40), -1))
-        } else {
-            @Suppress("DEPRECATION")
-            val v = context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as Vibrator
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                v.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 40, 80, 40), -1))
-            }
-        }
-    } catch (_: Exception) {}
+    com.autoclicker.claude.ui.components.Haptics.trigger(context, com.autoclicker.claude.ui.components.HapticType.WARNING)
 }

@@ -70,6 +70,8 @@ class PickOverlayManager(private val service: AccessibilityService) {
                     pickedPoints.add(Pair(cx, cy))
                     CommandBus.emitPickResult(cx, cy)
                     currentTouch = null
+                    // Haptic confirmation so user knows the tap registered
+                    triggerServiceHaptic()
 
                     if (!multiPick) {
                         dismiss()
@@ -94,6 +96,19 @@ class PickOverlayManager(private val service: AccessibilityService) {
         currentTouch = null
         CommandBus.setPickModeActive(false)
         CommandBus.send(com.autoclicker.claude.data.TapCommand.ExitPickMode)
+    }
+
+    private fun triggerServiceHaptic() {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                val vm = service.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager
+                vm.defaultVibrator.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                val v = service.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                v.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            }
+        } catch (_: Exception) {}
     }
 
     private fun getDoneButtonRect(screenW: Float, screenH: Float): RectF {

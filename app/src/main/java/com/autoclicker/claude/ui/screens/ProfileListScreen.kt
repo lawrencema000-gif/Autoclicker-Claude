@@ -106,15 +106,24 @@ fun ProfileListScreen(
             }
         }
 
-        // Import FAB
+        // Import FAB (shows spinner while importing)
+        val isImporting by vm.isImporting.collectAsState()
         FloatingActionButton(
-            onClick = onImport,
+            onClick = { if (!isImporting) onImport() },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp),
             containerColor = MaterialTheme.colorScheme.primary
         ) {
-            Icon(Icons.Default.FileDownload, contentDescription = "Import Script")
+            if (isImporting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Icon(Icons.Default.FileDownload, contentDescription = "Import Script")
+            }
         }
     }
 }
@@ -131,6 +140,7 @@ private fun ProfileCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     if (showDeleteConfirm) {
         com.autoclicker.claude.ui.components.ConfirmDialog(
@@ -138,7 +148,10 @@ private fun ProfileCard(
             message = "This script will be permanently deleted. This action cannot be undone.",
             confirmLabel = "Delete",
             destructive = true,
-            onConfirm = onDelete,
+            onConfirm = {
+                com.autoclicker.claude.ui.components.Haptics.trigger(context, com.autoclicker.claude.ui.components.HapticType.ERROR)
+                onDelete()
+            },
             onDismiss = { showDeleteConfirm = false }
         )
     }

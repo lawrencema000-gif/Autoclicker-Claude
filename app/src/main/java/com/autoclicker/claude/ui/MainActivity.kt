@@ -12,6 +12,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdsClick
@@ -129,8 +131,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         ) { padding ->
-            Box(modifier = Modifier.padding(padding)) {
-                when (selectedTab) {
+            androidx.compose.animation.AnimatedContent(
+                targetState = selectedTab,
+                modifier = Modifier.padding(padding),
+                transitionSpec = {
+                    androidx.compose.animation.fadeIn(tween(200)) togetherWith
+                        androidx.compose.animation.fadeOut(tween(150))
+                },
+                label = "tabTransition"
+            ) { tab ->
+                when (tab) {
                     0 -> HomeScreen(vm)
                     1 -> ProfileListScreen(
                         vm = vm,

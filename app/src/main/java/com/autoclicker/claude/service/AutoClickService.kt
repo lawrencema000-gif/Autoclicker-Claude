@@ -52,6 +52,7 @@ class AutoClickService : AccessibilityService() {
     // Service-side pick flow (works when UI is not active)
     private val serviceSidePickPoints = mutableListOf<ClickPoint>()
     private var serviceSidePickActive = false
+    private var pickTimeoutJob: Job? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -113,6 +114,14 @@ class AutoClickService : AccessibilityService() {
                             serviceSidePickPoints.clear()
                         }
                         pickOverlay?.show(cmd.multiPick)
+                        // Auto-dismiss pick overlay after 5 minutes of inactivity
+                        pickTimeoutJob?.cancel()
+                        pickTimeoutJob = scope.launch {
+                            delay(5 * 60 * 1000L)
+                            if (CommandBus.pickModeActive.value) {
+                                pickOverlay?.dismiss()
+                            }
+                        }
                     }
                 }
             }
@@ -135,6 +144,7 @@ class AutoClickService : AccessibilityService() {
         // When pick mode ends, start profile from service side if UI is not active
         scope.launch {
             CommandBus.pickModeActive.collect { active ->
+                if (!active) pickTimeoutJob?.cancel()
                 if (!active && serviceSidePickActive && serviceSidePickPoints.isNotEmpty()) {
                     serviceSidePickActive = false
                     val settings = CommandBus.defaultSettingsState.value
@@ -412,8 +422,11 @@ class AutoClickService : AccessibilityService() {
     }
 
     private suspend fun dispatchTap(x: Float, y: Float, durationMs: Long) {
-        val safeX = x.coerceAtLeast(0f)
-        val safeY = y.coerceAtLeast(0f)
+        val metrics = resources.displayMetrics
+        val maxX = (metrics.widthPixels - 1).toFloat()
+        val maxY = (metrics.heightPixels - 1).toFloat()
+        val safeX = x.coerceIn(0f, maxX)
+        val safeY = y.coerceIn(0f, maxY)
         val path = Path().apply { moveTo(safeX, safeY) }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs.coerceAtLeast(1L)))
@@ -428,7 +441,12 @@ class AutoClickService : AccessibilityService() {
     }
 
     private suspend fun dispatchSwipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long) {
-        val path = Path().apply { moveTo(x1, y1); lineTo(x2, y2) }
+        val metrics = resources.displayMetrics
+        val maxX = (metrics.widthPixels - 1).toFloat()
+        val maxY = (metrics.heightPixels - 1).toFloat()
+        val sx = x1.coerceIn(0f, maxX); val sy = y1.coerceIn(0f, maxY)
+        val ex = x2.coerceIn(0f, maxX); val ey = y2.coerceIn(0f, maxY)
+        val path = Path().apply { moveTo(sx, sy); lineTo(ex, ey) }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs.coerceAtLeast(1L)))
             .build()
@@ -457,7 +475,7 @@ class AutoClickService : AccessibilityService() {
     }
 
     private fun unregisterScreenOffReceiver() {
-        screenOffReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) {} }
-        screenOffReceiver = null
+        val receiver = screenOffReceiver ?: return
+        try { unregisterReceiver(receiver) } catch (_: Exception) {} finally { screenOffReceiver = null }
     }
 }

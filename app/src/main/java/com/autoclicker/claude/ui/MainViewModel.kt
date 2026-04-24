@@ -53,6 +53,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _history = MutableStateFlow<List<HistoryEntry>>(emptyList())
     val history: StateFlow<List<HistoryEntry>> = _history.asStateFlow()
 
+    private val _isImporting = MutableStateFlow(false)
+    val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
+
     init {
         CommandBus.setUiActive(true)
 
@@ -329,6 +332,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun importProfile(json: String, onResult: (success: Boolean, error: String?) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
+            _isImporting.value = true
             try {
                 repo.importProfileJson(json)
                 onResult(true, null)
@@ -336,6 +340,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 onResult(false, e.message)
             } catch (e: Exception) {
                 onResult(false, "Couldn't read this file. Try re-exporting the script.")
+            } finally {
+                _isImporting.value = false
             }
         }
     }

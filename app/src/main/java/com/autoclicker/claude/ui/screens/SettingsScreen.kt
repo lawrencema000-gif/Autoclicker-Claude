@@ -248,8 +248,8 @@ fun SettingsScreen(
                 // Random Position Offset
                 ToggleRow(
                     icon = Icons.Default.GpsFixed,
-                    label = "Random Position Offset",
-                    description = "Slightly shifts each tap to avoid detection",
+                    label = "Vary tap location",
+                    description = "Moves each tap by a few pixels — helps with apps that detect bots",
                     checked = anti.randomPositionOffset,
                     onCheckedChange = { anti = anti.copy(randomPositionOffset = it, enabled = it || anti.intervalJitter); save() }
                 )
@@ -269,8 +269,8 @@ fun SettingsScreen(
                 // Interval Jitter
                 ToggleRow(
                     icon = Icons.Default.Shuffle,
-                    label = "Interval Jitter",
-                    description = "Varies timing between taps",
+                    label = "Randomize tap timing",
+                    description = "Slightly changes the delay between taps so it looks human",
                     checked = anti.intervalJitter,
                     onCheckedChange = { anti = anti.copy(intervalJitter = it, enabled = it || anti.randomPositionOffset); save() }
                 )
@@ -290,8 +290,8 @@ fun SettingsScreen(
                 // Humanize Hold
                 ToggleRow(
                     icon = Icons.Default.Fingerprint,
-                    label = "Humanize Hold Duration",
-                    description = "Varies how long each tap is held",
+                    label = "Vary hold time",
+                    description = "Holds each tap for slightly different durations",
                     checked = anti.humanizeHoldDuration,
                     onCheckedChange = { anti = anti.copy(humanizeHoldDuration = it, enabled = true); save() }
                 )
@@ -301,8 +301,8 @@ fun SettingsScreen(
                 // Avoid Exact Repetition
                 ToggleRow(
                     icon = Icons.Default.DoNotDisturb,
-                    label = "Avoid Exact Repetition",
-                    description = "No two taps hit the same pixel",
+                    label = "Never tap the same pixel twice",
+                    description = "Avoids being flagged for suspiciously identical taps",
                     checked = anti.avoidExactRepetition,
                     onCheckedChange = { anti = anti.copy(avoidExactRepetition = it, enabled = true); save() }
                 )
@@ -312,8 +312,8 @@ fun SettingsScreen(
                 // Micro-pauses
                 ToggleRow(
                     icon = Icons.Default.Coffee,
-                    label = "Random Micro-Pauses",
-                    description = "Simulates human distraction with brief pauses",
+                    label = "Occasional tiny pauses",
+                    description = "Adds brief random pauses, like a real person getting distracted",
                     checked = anti.microPauseProbability > 0f && anti.enabled,
                     onCheckedChange = {
                         anti = if (it) anti.copy(microPauseProbability = 0.05f, enabled = true)

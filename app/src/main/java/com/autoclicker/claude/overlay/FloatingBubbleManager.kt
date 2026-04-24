@@ -30,6 +30,9 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
         if (bubbleView != null) return
         val density = service.resources.displayMetrics.density
         val sizePx = (48 * density).toInt()
+        val screenW = service.resources.displayMetrics.widthPixels
+        val screenH = service.resources.displayMetrics.heightPixels
+        val margin = (16 * density).toInt()
 
         val view = BubbleView(service)
         val params = WindowManager.LayoutParams(
@@ -39,9 +42,13 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = service.resources.displayMetrics.widthPixels - sizePx - (16 * density).toInt()
-            y = service.resources.displayMetrics.heightPixels / 2
+            // Clamp to screen bounds (so bubble can't appear off-screen on rotation)
+            x = (screenW - sizePx - margin).coerceIn(0, screenW - sizePx)
+            y = (screenH / 2).coerceIn(0, screenH - sizePx)
         }
+
+        // Start pulse animation for first 3 seconds to draw user's attention
+        view.startPulseAnimation()
 
         var touchDownTime = 0L
 
@@ -58,7 +65,10 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
                     val dx = event.rawX - dragStartX; val dy = event.rawY - dragStartY
                     if (!isDragging && (dx * dx + dy * dy) > dragThreshold * dragThreshold) isDragging = true
                     if (isDragging) {
-                        p.x = (dragStartParamX + dx).toInt(); p.y = (dragStartParamY + dy).toInt()
+                        val screenW = service.resources.displayMetrics.widthPixels
+                        val screenH = service.resources.displayMetrics.heightPixels
+                        p.x = (dragStartParamX + dx).toInt().coerceIn(0, screenW - p.width)
+                        p.y = (dragStartParamY + dy).toInt().coerceIn(0, screenH - p.height)
                         try { wm.updateViewLayout(v, p) } catch (_: Exception) {}
                     }
                 }
@@ -87,9 +97,6 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
         bubbleView = view
         layoutParams = params
         wm.addView(view, params)
-
-        // Refresh bubble when state changes
-        service as? AutoClickServiceBubbleRefresher
     }
 
     fun dismiss() {
@@ -121,9 +128,42 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
             style = Paint.Style.FILL
             color = Color.argb(40, 0, 0, 0)
         }
+        private val ringPaint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.STROKE
+            strokeWidth = 2f * density
+        }
+
+        private var pulseStartTime = 0L
+        private val pulseDurationMs = 3000L // pulse for 3 seconds
+        private val animator = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 1200L
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            interpolator = android.view.animation.LinearInterpolator()
+            addUpdateListener { invalidate() }
+        }
+
+        fun startPulseAnimation() {
+            pulseStartTime = System.currentTimeMillis()
+            animator.start()
+        }
 
         override fun onDraw(canvas: Canvas) {
             val cx = width / 2f; val cy = height / 2f; val r = width / 2f - 2f * density
+
+            // Pulse ring (only during first 3 seconds)
+            val elapsed = System.currentTimeMillis() - pulseStartTime
+            if (pulseStartTime > 0 && elapsed < pulseDurationMs) {
+                val phase = ((elapsed % 1200L) / 1200f)
+                val pulseR = r + (phase * 14f * density)
+                val pulseAlpha = ((1f - phase) * 180f).toInt().coerceIn(0, 255)
+                ringPaint.color = Color.argb(pulseAlpha, 0x38, 0xBD, 0xF8)
+                canvas.drawCircle(cx, cy, pulseR, ringPaint)
+            } else if (pulseStartTime > 0) {
+                // Pulse complete — stop animator
+                animator.cancel()
+                pulseStartTime = 0L
+            }
 
             // Shadow
             canvas.drawCircle(cx, cy + 2f * density, r, shadowPaint)
@@ -144,8 +184,11 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
             }
             canvas.drawText(icon, cx, cy + 6f * density, iconPaint)
         }
+
+        override fun onDetachedFromWindow() {
+            super.onDetachedFromWindow()
+            animator.cancel()
+        }
     }
 }
 
-// Marker interface (not actually needed, bubble refreshes via invalidate)
-interface AutoClickServiceBubbleRefresher
