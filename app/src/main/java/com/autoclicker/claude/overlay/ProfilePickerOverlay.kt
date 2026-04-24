@@ -39,7 +39,9 @@ class ProfilePickerOverlay(
         val panelW = (metrics.widthPixels * 0.72f).toInt()
         val panelH = metrics.heightPixels
 
-        val view = PanelView(service)
+        val view = PanelView(service).apply {
+            contentDescription = "Saved scripts panel. Scroll to browse, tap a script to run it, or tap close to dismiss."
+        }
         val params = WindowManager.LayoutParams(
             panelW, panelH,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,

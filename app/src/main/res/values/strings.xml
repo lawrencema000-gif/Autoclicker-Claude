@@ -4,4 +4,108 @@
     <string name="accessibility_description">Auto Clicker uses accessibility features to perform automated taps, swipes, long presses, and gestures at user-defined screen coordinates. Enable this service to allow Auto Clicker to run your saved macros. No personal data is collected.</string>
     <string name="notification_channel_name">AutoClicker Active</string>
     <string name="notification_channel_desc">Shown while AutoClicker is running</string>
+
+    <!-- Navigation tabs -->
+    <string name="tab_clicker">Clicker</string>
+    <string name="tab_scripts">Scripts</string>
+    <string name="tab_history">History</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome">Welcome to Auto Clicker</string>
+    <string name="onboarding_subtitle">Two quick steps to set up</string>
+    <string name="onboarding_step1_title">Let Auto Clicker tap your screen</string>
+    <string name="onboarding_step1_desc">Android needs your permission to tap, swipe, and record gestures for you. We never read screen content.</string>
+    <string name="onboarding_step1_allowed">Allowed</string>
+    <string name="onboarding_step1_allow">Allow</string>
+    <string name="onboarding_step2_title">Keep Auto Clicker running</string>
+    <string name="onboarding_step2_desc">Disable battery optimization so Android doesn\'t stop clicking when the screen dims.</string>
+    <string name="onboarding_step2_done">Done</string>
+    <string name="onboarding_step2_action">Keep running</string>
+    <string name="onboarding_step1_required">Step 1 is required. The app can\'t click without it.</string>
+    <string name="onboarding_get_started">Get Started</string>
+
+    <!-- Home screen modes -->
+    <string name="mode_label">Mode</string>
+    <string name="mode_single_tap">Single Tap</string>
+    <string name="mode_multi_tap">Multi Tap</string>
+    <string name="mode_pattern">Pattern</string>
+    <string name="mode_record">Record</string>
+    <string name="mode_hint_single">Tap START, then pick one point on screen. Clicks repeat at that spot.</string>
+    <string name="mode_hint_multi">Tap START, pick multiple points, press DONE. Clicks cycle through each point.</string>
+    <string name="mode_hint_pattern">Choose a pattern shape below. Clicks follow the pattern automatically.</string>
+    <string name="mode_hint_record">Tap START, then perform taps and swipes. Press DONE to save and replay.</string>
+
+    <!-- Primary action -->
+    <string name="action_start">START</string>
+    <string name="action_stop">STOP</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_discard">Discard</string>
+    <string name="action_got_it">Got it</string>
+
+    <!-- Stats labels -->
+    <string name="stats_taps">Taps</string>
+    <string name="stats_time">Time</string>
+    <string name="stats_loop">Loop</string>
+
+    <!-- Home screen tip -->
+    <string name="tip_quick_start_title">Quick start</string>
+    <string name="tip_quick_start_body">Tap START, then tap the spot on screen you want to click. Auto Clicker will repeat it.</string>
+    <string name="tip_dismiss">Dismiss tip</string>
+
+    <!-- Warnings / errors -->
+    <string name="warn_service_disabled">Allow Auto Clicker to tap your screen — Settings → Accessibility</string>
+    <string name="toast_service_needed">Allow Auto Clicker to tap your screen in Settings → Accessibility first</string>
+    <string name="toast_interval_min">Interval must be at least 10ms</string>
+    <string name="toast_loops_invalid">Loops must be a positive number (or blank for infinite)</string>
+    <string name="toast_script_imported">Script imported!</string>
+    <string name="toast_file_empty">File is empty.</string>
+    <string name="toast_file_open_failed">Couldn\'t open the file. Try again.</string>
+    <string name="toast_import_failed">Couldn\'t read this file. Try re-exporting the script.</string>
+
+    <!-- Confirmation dialogs -->
+    <string name="confirm_delete_title">Delete \"%1$s\"?</string>
+    <string name="confirm_delete_body">This script will be permanently deleted. This action cannot be undone.</string>
+    <string name="confirm_clear_points_title">Clear all points?</string>
+    <string name="confirm_clear_points_body">This will remove all %1$d custom points. You\'ll need to pick new ones.</string>
+    <string name="confirm_repick_title">Re-pick points?</string>
+    <string name="confirm_repick_body">This will clear all %1$d existing steps. You\'ll need to pick new ones.</string>
+    <string name="confirm_discard_title">Discard changes?</string>
+    <string name="confirm_discard_body">Your edits will be lost if you leave without saving.</string>
+
+    <!-- Bubble tip -->
+    <string name="bubble_tip_title">Floating bubble enabled</string>
+    <string name="bubble_tip_body">A draggable bubble now appears on your screen.\n\n• Tap: play / pause\n• Long-press: pick new points\n• Drag: move anywhere</string>
+    <string name="bubble_tip_turn_off">Turn off</string>
+
+    <!-- Profile list -->
+    <string name="scripts_empty_title">No scripts yet</string>
+    <string name="scripts_empty_body">Go to the Clicker tab and tap START to create your first automation script</string>
+    <string name="script_action_run">Run</string>
+    <string name="script_action_edit">Edit</string>
+    <string name="script_action_duplicate">Duplicate</string>
+    <string name="script_action_export">Export</string>
+    <string name="script_action_import">Import Script</string>
+    <string name="script_action_options">Options</string>
+
+    <!-- History -->
+    <string name="history_empty_title">No sessions yet</string>
+    <string name="history_empty_body">Your completed click sessions will appear here</string>
+
+    <!-- Settings: anti-detection labels (plain language) -->
+    <string name="anti_vary_location">Vary tap location</string>
+    <string name="anti_vary_location_desc">Moves each tap by a few pixels — helps with apps that detect bots</string>
+    <string name="anti_randomize_timing">Randomize tap timing</string>
+    <string name="anti_randomize_timing_desc">Slightly changes the delay between taps so it looks human</string>
+    <string name="anti_vary_hold">Vary hold time</string>
+    <string name="anti_vary_hold_desc">Holds each tap for slightly different durations</string>
+    <string name="anti_unique_pixel">Never tap the same pixel twice</string>
+    <string name="anti_unique_pixel_desc">Avoids being flagged for suspiciously identical taps</string>
+    <string name="anti_micro_pauses">Occasional tiny pauses</string>
+    <string name="anti_micro_pauses_desc">Adds brief random pauses, like a real person getting distracted</string>
 </resources>

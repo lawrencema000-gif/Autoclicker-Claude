@@ -34,7 +34,9 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
         val screenH = service.resources.displayMetrics.heightPixels
         val margin = (16 * density).toInt()
 
-        val view = BubbleView(service)
+        val view = BubbleView(service).apply {
+            contentDescription = "Auto Clicker floating control. Tap to pause or resume. Long-press to pick new tap points. Drag to move."
+        }
         val params = WindowManager.LayoutParams(
             sizePx, sizePx,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,

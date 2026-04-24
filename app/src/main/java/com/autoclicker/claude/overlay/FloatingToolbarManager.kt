@@ -44,7 +44,9 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
         val widthPx = (52 * density).toInt()
         val heightPx = (160 * density).toInt()
 
-        val view = ToolbarView(service)
+        val view = ToolbarView(service).apply {
+            contentDescription = "Auto Clicker toolbar. Shows tap count, elapsed time, and play, pause, stop, settings controls."
+        }
         val params = WindowManager.LayoutParams(
             widthPx, heightPx,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
