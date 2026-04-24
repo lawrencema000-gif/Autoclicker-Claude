@@ -179,14 +179,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun importFileUri(uri: Uri) {
-        try {
-            val json = contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
-            if (json != null) {
-                vm.importProfile(json)
-                Toast.makeText(this, "Script imported!", Toast.LENGTH_SHORT).show()
+        val json = try {
+            contentResolver.openInputStream(uri)?.use { stream ->
+                stream.bufferedReader().use { it.readText() }
             }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Failed to import: ${e.message}", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            Toast.makeText(this, "Couldn't open the file. Try again.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (json.isNullOrBlank()) {
+            Toast.makeText(this, "File is empty.", Toast.LENGTH_LONG).show()
+            return
+        }
+        vm.importProfile(json) { success, error ->
+            val msg = when {
+                success -> "Script imported!"
+                error != null -> error
+                else -> "Couldn't import this script."
+            }
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
         }
     }
 }

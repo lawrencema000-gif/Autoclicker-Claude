@@ -74,10 +74,43 @@ fun HomeScreen(vm: MainViewModel) {
                     Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "Enable Accessibility Service in Settings to start",
+                        "Allow Auto Clicker to tap your screen — Settings → Accessibility",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
+                }
+            }
+        }
+
+        // First-launch tutorial tip (dismissible)
+        val homeTipSeen by vm.homeTipSeen.collectAsState()
+        if (!homeTipSeen && serviceConnected) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(Icons.Default.Lightbulb, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Quick start",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            "Tap START, then tap the spot on screen you want to click. Auto Clicker will repeat it.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    IconButton(onClick = { vm.dismissHomeTip() }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, "Dismiss tip", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
         }
@@ -133,8 +166,15 @@ fun HomeScreen(vm: MainViewModel) {
         StartStopButton(
             isRunning = runState != RunState.IDLE,
             enabled = serviceConnected,
+            onDisabledTap = {
+                triggerHapticError(context)
+                android.widget.Toast.makeText(
+                    context,
+                    "Allow Auto Clicker to tap your screen in Settings → Accessibility first",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            },
             onClick = {
-                // Haptic feedback
                 triggerHaptic(context)
                 if (runState != RunState.IDLE) vm.stopExecution() else vm.quickStart()
             }
@@ -148,7 +188,12 @@ fun HomeScreen(vm: MainViewModel) {
 }
 
 @Composable
-private fun StartStopButton(isRunning: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun StartStopButton(
+    isRunning: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onDisabledTap: () -> Unit = {}
+) {
     val pulseAnim = rememberInfiniteTransition(label = "pulse")
     val scale by pulseAnim.animateFloat(
         initialValue = 1f,
@@ -160,16 +205,24 @@ private fun StartStopButton(isRunning: Boolean, enabled: Boolean, onClick: () ->
     )
 
     val btnColor by animateColorAsState(
-        targetValue = if (isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        targetValue = when {
+            !enabled -> MaterialTheme.colorScheme.surfaceVariant
+            isRunning -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.primary
+        },
         label = "btnColor"
     )
 
+    // Keep button always clickable; handle disabled state via onDisabledTap
     Button(
-        onClick = onClick,
+        onClick = { if (enabled) onClick() else onDisabledTap() },
         modifier = Modifier.fillMaxWidth().height(64.dp).scale(scale),
-        colors = ButtonDefaults.buttonColors(containerColor = btnColor),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = btnColor,
+            contentColor = if (enabled) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+        ),
         shape = RoundedCornerShape(20.dp),
-        enabled = enabled
+        enabled = true
     ) {
         Icon(
             imageVector = if (isRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
@@ -310,10 +363,21 @@ private fun SliderRow(label: String, value: Float, range: ClosedFloatingPointRan
 
 @Composable
 private fun CustomPointsList(points: List<ClickPoint>, onReorder: (Int, Int) -> Unit, onDelete: (String) -> Unit, onClear: () -> Unit) {
+    var confirmClear by remember { mutableStateOf(false) }
+    if (confirmClear) {
+        com.autoclicker.claude.ui.components.ConfirmDialog(
+            title = "Clear all points?",
+            message = "This will remove all ${points.size} custom points. You'll need to pick new ones.",
+            confirmLabel = "Clear",
+            destructive = true,
+            onConfirm = onClear,
+            onDismiss = { confirmClear = false }
+        )
+    }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Custom Points (${points.size})", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = onClear, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text("Clear All", style = MaterialTheme.typography.labelSmall) }
+            TextButton(onClick = { confirmClear = true }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text("Clear All", style = MaterialTheme.typography.labelSmall) }
         }
         points.forEachIndexed { index, point ->
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -351,6 +415,22 @@ private fun triggerHaptic(context: android.content.Context) {
             val v = context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as Vibrator
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 v.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+            }
+        }
+    } catch (_: Exception) {}
+}
+
+private fun triggerHapticError(context: android.content.Context) {
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vm = context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            // Double-pulse pattern to signal rejection
+            vm.defaultVibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 40, 80, 40), -1))
+        } else {
+            @Suppress("DEPRECATION")
+            val v = context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                v.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 40, 80, 40), -1))
             }
         }
     } catch (_: Exception) {}

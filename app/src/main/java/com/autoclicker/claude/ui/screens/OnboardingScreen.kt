@@ -80,7 +80,7 @@ fun OnboardingScreen(
             textAlign = TextAlign.Center
         )
         Text(
-            "Complete these steps to get started",
+            "Two quick steps to set up",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -91,11 +91,11 @@ fun OnboardingScreen(
         // Step 1: Accessibility
         StepCard(
             stepNumber = 1,
-            title = "Enable Accessibility Service",
-            description = "Required to perform automatic taps on your screen.",
+            title = "Let Auto Clicker tap your screen",
+            description = "Android needs your permission to tap, swipe, and record gestures for you. We never read screen content.",
             icon = Icons.Default.Accessibility,
             completed = serviceConnected,
-            actionLabel = if (serviceConnected) "Enabled" else "Open Settings",
+            actionLabel = if (serviceConnected) "Allowed" else "Allow",
             onAction = { if (!serviceConnected) onOpenAccessibility() }
         )
 
@@ -104,15 +104,26 @@ fun OnboardingScreen(
         // Step 2: Battery
         StepCard(
             stepNumber = 2,
-            title = "Disable Battery Optimization",
-            description = "Recommended to prevent the system from stopping AutoClicker.",
+            title = "Keep Auto Clicker running",
+            description = "Disable battery optimization so Android doesn't stop clicking when the screen dims.",
             icon = Icons.Default.BatteryChargingFull,
             completed = batteryOptimized,
-            actionLabel = if (batteryOptimized) "Done" else "Disable",
+            actionLabel = if (batteryOptimized) "Done" else "Keep running",
             onAction = { if (!batteryOptimized) onRequestBattery() }
         )
 
         Spacer(modifier = Modifier.weight(1f))
+
+        // Helpful hint when not ready
+        if (!serviceConnected) {
+            Text(
+                "Step 1 is required. The app can't click without it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+            )
+        }
 
         // Get Started
         Button(
@@ -124,10 +135,6 @@ fun OnboardingScreen(
             enabled = serviceConnected
         ) {
             Text("Get Started", fontWeight = FontWeight.Bold)
-        }
-
-        TextButton(onClick = onComplete) {
-            Text("Skip for now", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

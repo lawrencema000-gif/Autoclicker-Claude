@@ -72,6 +72,7 @@ class GestureRecorderOverlay(private val service: AccessibilityService) {
                     view.invalidate()
                 }
                 MotionEvent.ACTION_UP -> {
+                    if (currentPath.isEmpty()) return@setOnTouchListener true
                     val duration = System.currentTimeMillis() - touchDownTime
                     val startX = currentPath.first().first
                     val startY = currentPath.first().second

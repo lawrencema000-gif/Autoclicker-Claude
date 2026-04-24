@@ -25,6 +25,8 @@ class ProfileRepository(private val context: Context) {
     private val sessionPatternConfigKey = stringPreferencesKey("session_pattern_config")
     private val sessionCustomPointsKey = stringPreferencesKey("session_custom_points")
     private val lastProfileJsonKey = stringPreferencesKey("last_profile_json")
+    private val homeTipSeenKey = booleanPreferencesKey("home_tip_seen")
+    private val bubbleTipSeenKey = booleanPreferencesKey("bubble_tip_seen")
 
     val profiles: Flow<List<TapProfile>> = context.dataStore.data.map { prefs ->
         val json = prefs[profilesKey] ?: "[]"
@@ -106,7 +108,22 @@ class ProfileRepository(private val context: Context) {
     fun exportProfileJson(profile: TapProfile): String = gson.toJson(profile)
 
     suspend fun importProfileJson(json: String): TapProfile {
-        val parsed = gson.fromJson(json, TapProfile::class.java)
+        val trimmed = json.trim()
+        if (trimmed.isEmpty()) {
+            throw IllegalArgumentException("File is empty")
+        }
+        if (!trimmed.startsWith("{")) {
+            throw IllegalArgumentException("Not a valid script file (must be JSON)")
+        }
+        val parsed = try {
+            gson.fromJson(trimmed, TapProfile::class.java)
+                ?: throw IllegalArgumentException("Script is corrupted or from an unsupported version")
+        } catch (e: com.google.gson.JsonSyntaxException) {
+            throw IllegalArgumentException("Script file is corrupted")
+        }
+        if (parsed.name.isNullOrBlank()) {
+            throw IllegalArgumentException("Script is missing a name")
+        }
         val imported = parsed.copy(
             id = UUID.randomUUID().toString(),
             name = "${parsed.name} (Imported)",
@@ -127,21 +144,23 @@ class ProfileRepository(private val context: Context) {
     }
 
     fun getSessionMode(): Flow<ClickMode> = context.dataStore.data.map { prefs ->
-        val json = prefs[sessionModeKey]
-        if (json != null) gson.fromJson(json, ClickMode::class.java) else ClickMode.SINGLE_POINT
+        val json = prefs[sessionModeKey] ?: return@map ClickMode.SINGLE_POINT
+        try { gson.fromJson(json, ClickMode::class.java) ?: ClickMode.SINGLE_POINT }
+        catch (_: Exception) { ClickMode.SINGLE_POINT }
     }
 
     fun getSessionPatternConfig(): Flow<PatternConfig> = context.dataStore.data.map { prefs ->
-        val json = prefs[sessionPatternConfigKey]
-        if (json != null) gson.fromJson(json, PatternConfig::class.java) else PatternConfig()
+        val json = prefs[sessionPatternConfigKey] ?: return@map PatternConfig()
+        try { gson.fromJson(json, PatternConfig::class.java) ?: PatternConfig() }
+        catch (_: Exception) { PatternConfig() }
     }
 
     fun getSessionCustomPoints(): Flow<List<ClickPoint>> = context.dataStore.data.map { prefs ->
-        val json = prefs[sessionCustomPointsKey]
-        if (json != null) {
+        val json = prefs[sessionCustomPointsKey] ?: return@map emptyList()
+        try {
             val type = object : TypeToken<List<ClickPoint>>() {}.type
-            gson.fromJson(json, type)
-        } else emptyList()
+            gson.fromJson<List<ClickPoint>>(json, type) ?: emptyList()
+        } catch (_: Exception) { emptyList() }
     }
 
     // Last profile persistence (for volume trigger after restart)
@@ -150,13 +169,22 @@ class ProfileRepository(private val context: Context) {
     }
 
     fun getLastProfile(): Flow<TapProfile?> = context.dataStore.data.map { prefs ->
-        val json = prefs[lastProfileJsonKey]
-        if (json != null) gson.fromJson(json, TapProfile::class.java) else null
+        val json = prefs[lastProfileJsonKey] ?: return@map null
+        try { gson.fromJson(json, TapProfile::class.java) }
+        catch (_: Exception) { null }
     }
+
+    val homeTipSeen: Flow<Boolean> = context.dataStore.data.map { it[homeTipSeenKey] ?: false }
+    suspend fun setHomeTipSeen() { context.dataStore.edit { it[homeTipSeenKey] = true } }
+
+    val bubbleTipSeen: Flow<Boolean> = context.dataStore.data.map { it[bubbleTipSeenKey] ?: false }
+    suspend fun setBubbleTipSeen() { context.dataStore.edit { it[bubbleTipSeenKey] = true } }
 
     private fun loadProfiles(prefs: Preferences): MutableList<TapProfile> {
         val json = prefs[profilesKey] ?: "[]"
         val type = object : TypeToken<MutableList<TapProfile>>() {}.type
-        return gson.fromJson(json, type)
+        return try {
+            gson.fromJson<MutableList<TapProfile>>(json, type) ?: mutableListOf()
+        } catch (_: Exception) { mutableListOf() }
     }
 }

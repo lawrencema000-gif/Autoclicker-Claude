@@ -24,6 +24,33 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
     var name by remember(profile.id) { mutableStateOf(profile.name) }
     var interval by remember(profile.id) { mutableStateOf(profile.intervalMs.toString()) }
     var loopCount by remember(profile.id) { mutableStateOf(if (profile.loopCount == 0) "" else profile.loopCount.toString()) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
+    var showRepickConfirm by remember { mutableStateOf(false) }
+
+    val hasUnsavedChanges = name != profile.name ||
+        interval != profile.intervalMs.toString() ||
+        loopCount != (if (profile.loopCount == 0) "" else profile.loopCount.toString())
+
+    if (showDiscardConfirm) {
+        com.autoclicker.claude.ui.components.ConfirmDialog(
+            title = "Discard changes?",
+            message = "Your edits will be lost if you leave without saving.",
+            confirmLabel = "Discard",
+            destructive = true,
+            onConfirm = { vm.cancelEditing() },
+            onDismiss = { showDiscardConfirm = false }
+        )
+    }
+    if (showRepickConfirm) {
+        com.autoclicker.claude.ui.components.ConfirmDialog(
+            title = "Re-pick points?",
+            message = "This will clear all ${profile.steps.size} existing steps. You'll need to pick new ones.",
+            confirmLabel = "Re-pick",
+            destructive = true,
+            onConfirm = { vm.rePickEditingPoints() },
+            onDismiss = { showRepickConfirm = false }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -39,7 +66,9 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { vm.cancelEditing() }) {
+                IconButton(onClick = {
+                    if (hasUnsavedChanges) showDiscardConfirm = true else vm.cancelEditing()
+                }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
                 Text(
@@ -48,11 +77,31 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
+                val context = androidx.compose.ui.platform.LocalContext.current
                 FilledTonalButton(
                     onClick = {
-                        vm.updateEditingName(name)
-                        vm.updateEditingInterval(interval.toLongOrNull() ?: 100L)
-                        vm.updateEditingLoopCount(loopCount.toIntOrNull() ?: 0)
+                        val safeName = name.trim().ifBlank { "Untitled Script" }
+                        val parsedInterval = interval.toLongOrNull()
+                        if (parsedInterval == null || parsedInterval < 10L) {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Interval must be at least 10ms",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                            return@FilledTonalButton
+                        }
+                        val parsedLoops = loopCount.toIntOrNull()
+                        if (loopCount.isNotBlank() && (parsedLoops == null || parsedLoops < 0)) {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Loops must be a positive number (or blank for infinite)",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                            return@FilledTonalButton
+                        }
+                        vm.updateEditingName(safeName)
+                        vm.updateEditingInterval(parsedInterval)
+                        vm.updateEditingLoopCount(parsedLoops ?: 0)
                         vm.saveEditingProfile()
                     },
                     shape = RoundedCornerShape(12.dp)
@@ -102,7 +151,7 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                         OutlinedTextField(
                             value = loopCount,
                             onValueChange = { loopCount = it },
-                            label = { Text("Loops (0=∞)") },
+                            label = { Text("Loops (blank = forever)") },
                             modifier = Modifier.weight(1f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
@@ -157,7 +206,10 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                     modifier = Modifier.weight(1f)
                 )
                 FilledTonalButton(
-                    onClick = { vm.rePickEditingPoints() },
+                    onClick = {
+                        if (profile.steps.isNotEmpty()) showRepickConfirm = true
+                        else vm.rePickEditingPoints()
+                    },
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(18.dp))

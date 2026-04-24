@@ -130,6 +130,18 @@ private fun ProfileCard(
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        com.autoclicker.claude.ui.components.ConfirmDialog(
+            title = "Delete \"${profile.name}\"?",
+            message = "This script will be permanently deleted. This action cannot be undone.",
+            confirmLabel = "Delete",
+            destructive = true,
+            onConfirm = onDelete,
+            onDismiss = { showDeleteConfirm = false }
+        )
+    }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -187,7 +199,7 @@ private fun ProfileCard(
                     )
                     DropdownMenuItem(
                         text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                        onClick = { showMenu = false; onDelete() },
+                        onClick = { showMenu = false; showDeleteConfirm = true },
                         leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
                     )
                 }

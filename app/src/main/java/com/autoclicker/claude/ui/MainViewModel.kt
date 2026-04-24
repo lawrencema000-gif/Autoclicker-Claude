@@ -24,6 +24,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val profiles = repo.profiles.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val defaultSettings = repo.defaultSettings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DefaultSettings())
     val onboardingComplete = repo.onboardingComplete.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val homeTipSeen = repo.homeTipSeen.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val bubbleTipSeen = repo.bubbleTipSeen.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    fun dismissHomeTip() { viewModelScope.launch { repo.setHomeTipSeen() } }
+    fun dismissBubbleTip() { viewModelScope.launch { repo.setBubbleTipSeen() } }
 
     val runState = CommandBus.runState
     val stats = CommandBus.stats
@@ -322,7 +327,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun exportProfile(profile: TapProfile): String = repo.exportProfileJson(profile)
 
-    fun importProfile(json: String) {
-        viewModelScope.launch { repo.importProfileJson(json) }
+    fun importProfile(json: String, onResult: (success: Boolean, error: String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            try {
+                repo.importProfileJson(json)
+                onResult(true, null)
+            } catch (e: IllegalArgumentException) {
+                onResult(false, e.message)
+            } catch (e: Exception) {
+                onResult(false, "Couldn't read this file. Try re-exporting the script.")
+            }
+        }
     }
 }

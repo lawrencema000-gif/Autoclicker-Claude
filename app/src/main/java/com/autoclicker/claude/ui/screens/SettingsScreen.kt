@@ -330,6 +330,21 @@ fun SettingsScreen(
 
         // Floating Bubble
         val bubbleEnabled by CommandBus.bubbleEnabled.collectAsState()
+        val bubbleTipSeen by vm.bubbleTipSeen.collectAsState()
+        var showBubbleTip by remember { mutableStateOf(false) }
+        if (showBubbleTip) {
+            com.autoclicker.claude.ui.components.ConfirmDialog(
+                title = "Floating bubble enabled",
+                message = "A draggable bubble now appears on your screen.\n\n• Tap: play / pause\n• Long-press: pick new points\n• Drag: move anywhere",
+                confirmLabel = "Got it",
+                cancelLabel = "Turn off",
+                onConfirm = { vm.dismissBubbleTip() },
+                onDismiss = {
+                    showBubbleTip = false
+                    CommandBus.setBubbleEnabled(false)
+                }
+            )
+        }
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             shape = RoundedCornerShape(16.dp)
@@ -342,9 +357,15 @@ fun SettingsScreen(
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Floating Bubble", fontWeight = FontWeight.SemiBold)
-                    Text("Quick play/pause from any app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Tap to pause, long-press to pick points, drag to move", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(checked = bubbleEnabled, onCheckedChange = { CommandBus.setBubbleEnabled(it) })
+                Switch(
+                    checked = bubbleEnabled,
+                    onCheckedChange = { enabled ->
+                        CommandBus.setBubbleEnabled(enabled)
+                        if (enabled && !bubbleTipSeen) showBubbleTip = true
+                    }
+                )
             }
         }
 

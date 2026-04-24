@@ -92,6 +92,7 @@ class ProfilePickerOverlay(
     }
 
     fun dismiss() {
+        scope.coroutineContext.cancelChildren()
         panelView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         panelView = null
     }
