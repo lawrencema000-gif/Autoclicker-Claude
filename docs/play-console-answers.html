@@ -3,63 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto Clicker — Play Console Submission Reference</title>
+    <title>Auto Clicker — Play Console Submission Pack</title>
+    <meta name="description" content="Single source of truth for the Auto Clicker Play Console submission. Includes Chrome Extension prompt, store listing copy, screenshots, icon, and every form answer.">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; background: #f8fafc; padding: 24px; }
-        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; background: #f1f5f9; padding: 24px; }
+        .container { max-width: 980px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         h1 { font-size: 32px; margin-bottom: 8px; color: #0f172a; }
         h2 { font-size: 22px; margin-top: 36px; margin-bottom: 12px; color: #0f172a; padding-bottom: 8px; border-bottom: 2px solid #38bdf8; }
         h3 { font-size: 16px; margin-top: 20px; margin-bottom: 8px; color: #0369a1; font-weight: 600; }
         p, li { font-size: 14px; color: #475569; margin-bottom: 8px; }
         ul, ol { padding-left: 24px; margin-bottom: 12px; }
+        a { color: #0369a1; }
         .answer { background: #f0f9ff; border-left: 4px solid #38bdf8; padding: 12px 16px; margin: 8px 0; border-radius: 4px; }
         .answer strong { color: #0c4a6e; }
-        .copy { background: #1e293b; color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 13px; white-space: pre-wrap; word-break: break-all; }
+        .copy { position: relative; background: #0f172a; color: #f1f5f9; padding: 14px 16px 14px 16px; border-radius: 8px; margin: 8px 0; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; white-space: pre-wrap; word-wrap: break-word; }
+        .copy button { position: absolute; top: 8px; right: 8px; background: #38bdf8; color: #0f172a; border: 0; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 12px; }
+        .copy button:hover { background: #0ea5e9; color: #fff; }
+        .copy button:active { transform: scale(0.97); }
+        .copy.copied button { background: #34d399; color: #0f172a; }
         .url { background: #ecfdf5; padding: 8px 12px; border-radius: 6px; font-family: monospace; font-size: 13px; color: #065f46; display: inline-block; }
-        .toc { background: #f1f5f9; padding: 16px 24px; border-radius: 8px; margin: 16px 0 32px; }
-        .toc a { color: #0369a1; text-decoration: none; display: block; padding: 4px 0; }
+        .toc { background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px 24px; border-radius: 8px; margin: 16px 0 32px; }
+        .toc strong { display: block; margin-bottom: 8px; color: #0f172a; }
+        .toc a { color: #0369a1; text-decoration: none; display: block; padding: 4px 0; font-size: 14px; }
         .toc a:hover { text-decoration: underline; }
         .pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px; }
         .yes { background: #d1fae5; color: #065f46; }
-        .no { background: #fee2e2; color: #991b1b; }
+        .no  { background: #fee2e2; color: #991b1b; }
         .small { font-size: 13px; color: #64748b; margin-top: 4px; }
         .date { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+        .hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f1f5f9; padding: 32px; border-radius: 16px; margin: 0 0 32px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+        .hero img { width: 120px; height: 120px; border-radius: 24px; box-shadow: 0 8px 24px rgba(56,189,248,0.3); }
+        .hero h1 { color: #fff; font-size: 28px; margin-bottom: 4px; }
+        .hero .tag { color: #94a3b8; font-size: 14px; margin-bottom: 12px; }
+        .hero .links { display: flex; gap: 8px; flex-wrap: wrap; }
+        .hero .links a { background: #38bdf8; color: #0f172a; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; }
+        .hero .links a:hover { background: #0ea5e9; color: #fff; }
+        .prompt-box { background: #0f172a; color: #f1f5f9; padding: 24px; border-radius: 12px; margin: 16px 0; border: 2px solid #38bdf8; }
+        .prompt-box h3 { color: #38bdf8; margin-bottom: 12px; font-size: 18px; }
+        .screens-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin: 12px 0; }
+        .screens-grid figure { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        .screens-grid img { width: 100%; height: auto; display: block; }
+        .screens-grid figcaption { padding: 8px 10px; font-size: 12px; color: #475569; }
+        .download-row { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+        .download-row a { background: #f0f9ff; border: 1px solid #38bdf8; color: #0c4a6e; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; }
+        .download-row a:hover { background: #38bdf8; color: #fff; }
+        .icon-preview { display: flex; align-items: center; gap: 16px; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 8px 0; }
+        .icon-preview img { width: 96px; height: 96px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>Auto Clicker — Play Console Submission Reference</h1>
-    <p class="date">Single source of truth for every Play Console form. Use this page to copy/paste answers.</p>
+
+    <div class="hero">
+        <img src="icon-512.png" alt="Auto Clicker icon">
+        <div style="flex: 1; min-width: 240px;">
+            <h1>Auto Clicker — Play Console Submission Pack</h1>
+            <p class="tag">com.autoclicker.claude · v1.0 · Free · Tools category</p>
+            <div class="links">
+                <a href="icon-512.png" download>Download icon (512×512)</a>
+                <a href="icon-1024.png" download>Hi-res icon (1024×1024)</a>
+                <a href="privacy-policy.html">Privacy policy</a>
+                <a href="#screenshots">Screenshots</a>
+            </div>
+        </div>
+    </div>
+
+    <p class="date">Single source of truth for every Play Console form. Hand this URL to Claude Chrome Extension or copy answers manually. Last updated 2026-04-26.</p>
 
     <div class="toc">
-        <strong>Quick links:</strong>
-        <a href="#essentials">App essentials (name, package, signing key)</a>
-        <a href="#privacy">Privacy policy URL</a>
-        <a href="#listing">Store listing (descriptions, copy, graphics)</a>
-        <a href="#access">App access</a>
-        <a href="#ads">Ads declaration</a>
-        <a href="#content-rating">Content rating questionnaire</a>
-        <a href="#target-audience">Target audience &amp; children</a>
-        <a href="#data-safety">Data safety form</a>
-        <a href="#government">Government apps</a>
-        <a href="#financial">Financial features</a>
-        <a href="#health">Health</a>
-        <a href="#news">News apps</a>
-        <a href="#covid">COVID-19 contact tracing</a>
-        <a href="#accessibility-decl">Accessibility service declaration</a>
-        <a href="#fgs">Foreground service special use</a>
-        <a href="#release">Production release (AAB)</a>
+        <strong>Quick links</strong>
+        <a href="#chrome-prompt">⚡ Claude Chrome Extension prompt (paste this)</a>
+        <a href="#essentials">1. App essentials</a>
+        <a href="#privacy">2. Privacy policy URL</a>
+        <a href="#listing">3. Store listing (copy + assets)</a>
+        <a href="#screenshots">4. Phone screenshots (download)</a>
+        <a href="#access">5. App access</a>
+        <a href="#ads">6. Ads declaration</a>
+        <a href="#content-rating">7. Content rating questionnaire</a>
+        <a href="#target-audience">8. Target audience &amp; children</a>
+        <a href="#data-safety">9. Data safety form</a>
+        <a href="#government">10. Government / Financial / Health / News / COVID</a>
+        <a href="#accessibility-decl">11. Accessibility Service declaration</a>
+        <a href="#fgs">12. Foreground Service Special Use declaration</a>
+        <a href="#release">13. Production release (AAB upload)</a>
     </div>
+
+    <!-- ============================================ -->
+    <h2 id="chrome-prompt">⚡ Claude Chrome Extension prompt</h2>
+    <p>Open Play Console in a Chrome tab where you're signed in as <code>lawrence.ma000@gmail.com</code>, then open Claude in the side panel and paste this prompt. It tells Claude to use this very page as its source of truth.</p>
+
+    <div class="prompt-box">
+        <h3>Paste this into Claude Chrome Extension</h3>
+        <div class="copy" id="prompt-1"><button onclick="copyEl('prompt-1')">Copy</button>You are helping me finish submitting my Android app "Auto Clicker" to the Google Play Console. I am about halfway through the submission and need you to complete every remaining form, declaration, and store-listing field for me.
+
+SOURCE OF TRUTH
+All answers, copy, screenshots, icon, AAB path, and declarations live on this single page:
+https://lawrencema000-gif.github.io/Autoclicker-Claude/play-console-answers.html
+
+Open it in a new tab and reference it for every field. If a question on the Play Console matches a section on that page, copy the exact wording from there. Do not invent answers.
+
+KEY FACTS
+- Package name: com.autoclicker.claude
+- App name: Auto Clicker - Automatic Tap
+- Developer: lawrencema000-gif
+- Support email: lawrence.ma000@gmail.com
+- Free app, Tools category, English (US) default language
+- Privacy policy: https://lawrencema000-gif.github.io/Autoclicker-Claude/privacy-policy.html
+- App icon (512×512 PNG): https://lawrencema000-gif.github.io/Autoclicker-Claude/icon-512.png
+- 7 phone screenshots (1080×2400 JPG) at:
+  https://lawrencema000-gif.github.io/Autoclicker-Claude/screenshots/01-home-single-tap.jpg
+  https://lawrencema000-gif.github.io/Autoclicker-Claude/screenshots/02-multi-tap-running.jpg
+  https://lawrencema000-gif.github.io/Autoclicker-Claude/screenshots/03-floating-toolbar-expanded.jpg
+  https://lawrencema000-gif.github.io/Autoclicker-Claude/screenshots/04-pattern-circle.jpg
+  https://lawrencema000-gif.github.io/Autoclicker-Claude/screenshots/05-pattern-zigzag-running.jpg
+  https://lawrencema000-gif.github.io/Autoclicker-Claude/screenshots/06-settings-speed.jpg
+  https://lawrencema000-gif.github.io/Autoclicker-Claude/screenshots/07-settings-advanced.jpg
+- Signed AAB on my computer at:
+  C:\Users\lmao\Desktop\mycursor\Autoclicker-Claude\app\build\outputs\bundle\release\app-release.aab
+- AdMob is integrated. App contains ads. Yes to ads. Yes to advertising ID collection.
+
+WHAT TO DO
+1. Walk through every remaining left-nav item in Play Console:
+   App content (privacy policy, ads, app access, content rating, target audience, news, data safety, government, financial, health, COVID), Main store listing, Store settings, Permissions declarations, App pricing &amp; distribution, Production release.
+2. For each one: read the corresponding section on the source-of-truth page and fill the form by copying the exact text. Do not paraphrase the declarations — they were written specifically to pass review.
+3. For "Permissions and APIs" → declare BIND_ACCESSIBILITY_SERVICE and FOREGROUND_SERVICE_SPECIAL_USE using the exact declaration text on the source page.
+4. For Data Safety: AdMob collects Advertising ID only. Encrypted in transit: Yes. Optional: No. Purpose: Advertising. Shared with Google. Nothing else is collected.
+5. For Content Rating: answer NO to every question (no violence, no sex, no profanity, no drugs, no gambling, no UGC, no location sharing, no user interaction, no purchases). Expected rating: Everyone / 3+.
+6. For Target Audience: select 18+ only. Not appealing to children: No.
+7. Upload the icon and the 7 screenshots from the URLs above. Set short description, full description, and tags to the exact text on the source page.
+8. For Production release: tell me when you reach AAB upload — I'll attach the file from my computer. Set release notes to the exact text on the source page. Country availability: All countries / Worldwide.
+9. After every section that you complete, give me a one-line confirmation ("✅ Data Safety done", etc.) so I can track progress.
+10. If Play Console asks anything that is NOT covered on the source page, stop and ask me before guessing.
+
+Begin by opening the source-of-truth URL in a new tab, then open Play Console for the Auto Clicker app, then start with whichever section is incomplete. Continue until everything except the AAB upload is done.</div>
+    </div>
+
+    <p class="small"><strong>Tip:</strong> If Claude in the extension says it can't open the URL, paste the page contents into the chat as text and tell it to use that as the reference instead.</p>
 
     <!-- ============================================ -->
     <h2 id="essentials">1. App essentials</h2>
 
     <h3>App name (max 30 chars)</h3>
-    <div class="copy">Auto Clicker - Automatic Tap</div>
+    <div class="copy" id="c-name"><button onclick="copyEl('c-name')">Copy</button>Auto Clicker - Automatic Tap</div>
 
     <h3>Package name (already locked)</h3>
-    <div class="copy">com.autoclicker.claude</div>
+    <div class="copy" id="c-pkg"><button onclick="copyEl('c-pkg')">Copy</button>com.autoclicker.claude</div>
 
     <h3>Default language</h3>
     <div class="answer">English (United States) – en-US</div>
@@ -71,31 +160,42 @@
     <div class="answer">Free</div>
 
     <h3>Developer name (publicly shown)</h3>
-    <div class="copy">lawrencema000-gif</div>
+    <div class="copy" id="c-dev"><button onclick="copyEl('c-dev')">Copy</button>lawrencema000-gif</div>
 
     <h3>Support email</h3>
-    <div class="copy">lawrence.ma000@gmail.com</div>
+    <div class="copy" id="c-email"><button onclick="copyEl('c-email')">Copy</button>lawrence.ma000@gmail.com</div>
 
     <h3>App category</h3>
     <div class="answer">Tools</div>
 
-    <h3>Tags (pick 5 from list)</h3>
+    <h3>Tags (pick 5)</h3>
     <div class="answer">Productivity, Utilities, Automation, Accessibility, Personalization</div>
 
     <!-- ============================================ -->
     <h2 id="privacy">2. Privacy policy</h2>
-    <h3>Privacy policy URL</h3>
-    <div class="copy">https://lawrencema000-gif.github.io/Autoclicker-Claude/privacy-policy.html</div>
-    <p class="small">Already live on GitHub Pages.</p>
+    <h3>Privacy policy URL (live on GitHub Pages)</h3>
+    <div class="copy" id="c-pp"><button onclick="copyEl('c-pp')">Copy</button>https://lawrencema000-gif.github.io/Autoclicker-Claude/privacy-policy.html</div>
 
     <!-- ============================================ -->
-    <h2 id="listing">3. Store listing</h2>
+    <h2 id="listing">3. Store listing (copy + assets)</h2>
+
+    <h3>App icon (512×512 PNG)</h3>
+    <div class="icon-preview">
+        <img src="icon-512.png" alt="Auto Clicker app icon">
+        <div>
+            <p><strong>Upload this file to Play Console → Main store listing → App icon.</strong></p>
+            <div class="download-row">
+                <a href="icon-512.png" download>Download icon-512.png</a>
+                <a href="icon-1024.png" download>icon-1024.png (hi-res)</a>
+            </div>
+        </div>
+    </div>
 
     <h3>Short description (max 80 chars)</h3>
-    <div class="copy">Automatic screen tapper with gesture recording, patterns &amp; anti-detection</div>
+    <div class="copy" id="c-short"><button onclick="copyEl('c-short')">Copy</button>Automatic screen tapper with gesture recording, patterns &amp; anti-detection</div>
 
     <h3>Full description (max 4000 chars)</h3>
-    <div class="copy">Auto Clicker is a powerful, free automatic screen tapper for Android. Set up automated taps, swipes, and complex gesture patterns — then let the app do the work while you focus on what matters.
+    <div class="copy" id="c-long"><button onclick="copyEl('c-long')">Copy</button>Auto Clicker is a powerful, free automatic screen tapper for Android. Set up automated taps, swipes, and complex gesture patterns — then let the app do the work while you focus on what matters.
 
 4 Clicking Modes:
 - Single Tap — Pick one point, clicks repeat automatically
@@ -145,51 +245,74 @@ No root required. Your scripts and data stay on your device — nothing is uploa
 
 Download Auto Clicker now and automate any repetitive screen interaction.</div>
 
-    <h3>App icon (512x512 PNG)</h3>
-    <p>Source SVG: <a href="icon-512.svg">icon-512.svg</a> — convert to PNG using any browser screenshot or SVG-to-PNG tool.</p>
-
-    <h3>Feature graphic (1024x500 PNG)</h3>
-    <p>Source SVG: <a href="feature-graphic.svg">feature-graphic.svg</a></p>
-
-    <h3>Phone screenshots (need 2-8)</h3>
-    <p>Take screenshots from your phone of:
-        <br>1. Home screen with the four modes
-        <br>2. A pattern preview
-        <br>3. Settings screen
-        <br>4. A profile being edited
-        <br>5. Floating toolbar in action over another app (optional but powerful)
-    </p>
+    <h3>Feature graphic (1024×500)</h3>
+    <p>Source SVG: <a href="feature-graphic.svg">feature-graphic.svg</a> — open in a browser, screenshot at 1024×500, save as PNG.</p>
 
     <!-- ============================================ -->
-    <h2 id="access">4. App access</h2>
+    <h2 id="screenshots">4. Phone screenshots (download &amp; upload)</h2>
+    <p>You need 2–8 phone screenshots. All 7 below are taken from the actual app on a real device. Right-click → Save As, or use the link in the captions to download.</p>
+
+    <div class="screens-grid">
+        <figure>
+            <img src="screenshots/01-home-single-tap.jpg" alt="Home screen with Single Tap selected">
+            <figcaption><a href="screenshots/01-home-single-tap.jpg" download>1. Home — Single Tap mode</a></figcaption>
+        </figure>
+        <figure>
+            <img src="screenshots/02-multi-tap-running.jpg" alt="Multi Tap mode running with floating toolbar">
+            <figcaption><a href="screenshots/02-multi-tap-running.jpg" download>2. Multi Tap running + toolbar</a></figcaption>
+        </figure>
+        <figure>
+            <img src="screenshots/03-floating-toolbar-expanded.jpg" alt="Expanded floating toolbar with speed slider">
+            <figcaption><a href="screenshots/03-floating-toolbar-expanded.jpg" download>3. Expanded floating toolbar</a></figcaption>
+        </figure>
+        <figure>
+            <img src="screenshots/04-pattern-circle.jpg" alt="Pattern mode showing Circle preview">
+            <figcaption><a href="screenshots/04-pattern-circle.jpg" download>4. Pattern mode — Circle</a></figcaption>
+        </figure>
+        <figure>
+            <img src="screenshots/05-pattern-zigzag-running.jpg" alt="Pattern Zigzag running with overlay">
+            <figcaption><a href="screenshots/05-pattern-zigzag-running.jpg" download>5. Zigzag pattern running</a></figcaption>
+        </figure>
+        <figure>
+            <img src="screenshots/06-settings-speed.jpg" alt="Settings — speed presets and timing">
+            <figcaption><a href="screenshots/06-settings-speed.jpg" download>6. Settings — speed presets</a></figcaption>
+        </figure>
+        <figure>
+            <img src="screenshots/07-settings-advanced.jpg" alt="Settings — advanced quick controls">
+            <figcaption><a href="screenshots/07-settings-advanced.jpg" download>7. Settings — quick controls</a></figcaption>
+        </figure>
+    </div>
+
+    <!-- ============================================ -->
+    <h2 id="access">5. App access</h2>
     <h3>Is all of your app's functionality available without any access restrictions?</h3>
     <div class="answer"><strong>Yes</strong> — All functionality is available without login, sign-up, or paywall.</div>
 
     <!-- ============================================ -->
-    <h2 id="ads">5. Ads</h2>
+    <h2 id="ads">6. Ads</h2>
     <h3>Does your app contain ads?</h3>
     <div class="answer"><strong>Yes</strong> <span class="pill yes">YES</span></div>
     <p class="small">App uses Google AdMob to display App Open ads (on launch, with 5-min cooldown) and Banner ads (on Home and Settings screens).</p>
 
     <!-- ============================================ -->
-    <h2 id="content-rating">6. Content rating questionnaire</h2>
+    <h2 id="content-rating">7. Content rating questionnaire</h2>
 
     <h3>Email for IARC contact</h3>
-    <div class="copy">lawrence.ma000@gmail.com</div>
+    <div class="copy" id="c-iarc"><button onclick="copyEl('c-iarc')">Copy</button>lawrence.ma000@gmail.com</div>
 
     <h3>Category</h3>
-    <div class="answer">Reference, News, or Educational <em>or</em> Utility, Productivity, Communication, or Other</div>
+    <div class="answer">Utility, Productivity, Communication, or Other</div>
 
     <h3>All questions about violence, sex, drugs, gambling, etc.</h3>
     <div class="answer"><strong>NO</strong> to ALL questions</div>
     <ul>
-        <li>Does the app contain violence? <strong>No</strong></li>
+        <li>Violence? <strong>No</strong></li>
         <li>Sexual content? <strong>No</strong></li>
         <li>Profanity? <strong>No</strong></li>
         <li>Drugs/alcohol/tobacco? <strong>No</strong></li>
         <li>Gambling? <strong>No</strong></li>
         <li>Crude humor? <strong>No</strong></li>
-        <li>User-generated content? <strong>No</strong> (scripts are stored locally only, not shared)</li>
+        <li>User-generated content? <strong>No</strong> (scripts are local-only)</li>
         <li>Shares user location? <strong>No</strong></li>
         <li>Allows users to interact? <strong>No</strong></li>
         <li>Allows purchase of digital goods? <strong>No</strong></li>
@@ -199,29 +322,28 @@ Download Auto Clicker now and automate any repetitive screen interaction.</div>
     <div class="answer">Everyone / 3+ (PEGI 3, USK 0, IARC 3+)</div>
 
     <!-- ============================================ -->
-    <h2 id="target-audience">7. Target audience &amp; children</h2>
+    <h2 id="target-audience">8. Target audience &amp; children</h2>
 
     <h3>Target age groups</h3>
     <div class="answer">18 and over</div>
-    <p class="small">Choosing 18+ avoids the strict COPPA compliance requirements that come with targeting children. The app works for all ages but isn't designed for kids.</p>
+    <p class="small">Choosing 18+ avoids strict COPPA requirements. The app works for all ages but isn't designed for kids.</p>
 
     <h3>Is your app appealing to children?</h3>
     <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
-    <p class="small">Auto Clicker is a productivity utility — no game elements, no animations aimed at kids, no characters.</p>
 
-    <h3>Have you confirmed the app does not target children?</h3>
+    <h3>Confirmed app does not target children?</h3>
     <div class="answer"><strong>Yes</strong></div>
 
     <!-- ============================================ -->
-    <h2 id="data-safety">8. Data safety form</h2>
+    <h2 id="data-safety">9. Data safety form</h2>
 
-    <h3>Does your app collect or share any of the required user data types?</h3>
+    <h3>Does your app collect or share any user data?</h3>
     <div class="answer"><strong>Yes</strong> — via Google AdMob SDK only</div>
 
-    <h3>Is all of the user data collected by your app encrypted in transit?</h3>
+    <h3>Is all collected data encrypted in transit?</h3>
     <div class="answer"><strong>Yes</strong> — all AdMob traffic uses HTTPS</div>
 
-    <h3>Do you provide a way for users to request that their data is deleted?</h3>
+    <h3>Can users request deletion?</h3>
     <div class="answer"><strong>Yes</strong> — Users can clear all app data via Android Settings → Apps → Auto Clicker → Storage → Clear data, or by uninstalling the app. There is no server-side data to delete.</div>
 
     <h3>Data types collected</h3>
@@ -239,35 +361,20 @@ Download Auto Clicker now and automate any repetitive screen interaction.</div>
     <p class="small"><strong>NOT collected:</strong> Personal info, financial info, health info, messages, photos, contacts, location, web/app activity, files, audio, calendar, app info, device performance.</p>
 
     <!-- ============================================ -->
-    <h2 id="government">9. Government apps</h2>
-    <h3>Is your app made by or on behalf of a government?</h3>
-    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
+    <h2 id="government">10. Government / Financial / Health / News / COVID</h2>
+    <p>Answer <strong>No</strong> to every one:</p>
+    <ul>
+        <li>Government app? <strong>No</strong> <span class="pill no">NO</span></li>
+        <li>Financial features (banking, lending, crypto, investment, insurance, money transfer)? <strong>No</strong> <span class="pill no">NO</span></li>
+        <li>Health information? <strong>No</strong> <span class="pill no">NO</span></li>
+        <li>News app? <strong>No</strong> <span class="pill no">NO</span></li>
+        <li>COVID-19 contact tracing or status app? <strong>No</strong> <span class="pill no">NO</span></li>
+    </ul>
 
     <!-- ============================================ -->
-    <h2 id="financial">10. Financial features</h2>
-    <h3>Does your app provide financial features?</h3>
-    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
-    <p class="small">No banking, lending, crypto, investment, insurance, or money transfer features.</p>
-
-    <!-- ============================================ -->
-    <h2 id="health">11. Health</h2>
-    <h3>Does your app collect health information?</h3>
-    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
-
-    <!-- ============================================ -->
-    <h2 id="news">12. News apps</h2>
-    <h3>Is your app a news app?</h3>
-    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
-
-    <!-- ============================================ -->
-    <h2 id="covid">13. COVID-19 contact tracing</h2>
-    <h3>Is your app a publicly available COVID-19 contact tracing or status app?</h3>
-    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
-
-    <!-- ============================================ -->
-    <h2 id="accessibility-decl">14. Accessibility service declaration</h2>
+    <h2 id="accessibility-decl">11. Accessibility Service declaration</h2>
     <h3>Why does your app need the Accessibility Service permission?</h3>
-    <div class="copy">Auto Clicker uses the Accessibility Service to perform automated touch gestures (taps, swipes, long-presses) at user-defined screen coordinates. This is the core function of the app — automating repetitive screen interactions that the user has explicitly configured.
+    <div class="copy" id="c-a11y"><button onclick="copyEl('c-a11y')">Copy</button>Auto Clicker uses the Accessibility Service to perform automated touch gestures (taps, swipes, long-presses) at user-defined screen coordinates. This is the core function of the app — automating repetitive screen interactions that the user has explicitly configured.
 
 The Accessibility Service is used ONLY to:
 1. Dispatch touch gestures via dispatchGesture() at user-specified coordinates
@@ -285,9 +392,9 @@ Users explicitly enable this permission during onboarding, with a clear explanat
 This is the standard mechanism used by all legitimate auto-clicker apps on the Play Store, as Android does not provide an alternative API for programmatic gesture dispatch.</div>
 
     <!-- ============================================ -->
-    <h2 id="fgs">15. Foreground service special use declaration</h2>
+    <h2 id="fgs">12. Foreground Service Special Use declaration</h2>
     <h3>Why does your app use FOREGROUND_SERVICE_SPECIAL_USE?</h3>
-    <div class="copy">Auto Clicker uses a foreground service to keep the auto-clicking session running while the user navigates to and interacts with other apps on their device. The user must be able to switch to a target app (game, utility, etc.) while the click sequence continues to execute.
+    <div class="copy" id="c-fgs"><button onclick="copyEl('c-fgs')">Copy</button>Auto Clicker uses a foreground service to keep the auto-clicking session running while the user navigates to and interacts with other apps on their device. The user must be able to switch to a target app (game, utility, etc.) while the click sequence continues to execute.
 
 We use foregroundServiceType="specialUse" with subtype "automation" because:
 - The app's core function is user-controlled task automation
@@ -299,12 +406,12 @@ We use foregroundServiceType="specialUse" with subtype "automation" because:
 The service does NOT run in the background indefinitely. It is bound 1:1 to the active click session that the user explicitly started.</div>
 
     <!-- ============================================ -->
-    <h2 id="release">16. Production release (AAB upload)</h2>
+    <h2 id="release">13. Production release (AAB upload)</h2>
 
     <h3>Release notes (for first version)</h3>
-    <div class="copy">Initial release — Auto Clicker with 4 modes (Single, Multi, Pattern, Record), gesture recording, anti-detection, floating overlay controls, volume button trigger, and full script management.</div>
+    <div class="copy" id="c-rel"><button onclick="copyEl('c-rel')">Copy</button>Initial release — Auto Clicker with 4 modes (Single, Multi, Pattern, Record), gesture recording, anti-detection, floating overlay controls, volume button trigger, and full script management.</div>
 
-    <h3>AAB file location</h3>
+    <h3>AAB file location (on the user's computer)</h3>
     <div class="url">C:\Users\lmao\Desktop\mycursor\Autoclicker-Claude\app\build\outputs\bundle\release\app-release.aab</div>
     <p class="small">Already signed with the production keystore. Just upload it.</p>
 
@@ -312,13 +419,13 @@ The service does NOT run in the background indefinitely. It is bound 1:1 to the 
     <div class="answer">All countries / Worldwide</div>
 
     <!-- ============================================ -->
-    <h2>Summary checklist</h2>
+    <h2>Final checklist</h2>
     <ul>
         <li>App name, package name, language ✓</li>
-        <li>Privacy policy URL ✓</li>
+        <li>Privacy policy URL live ✓</li>
         <li>Short and full description ✓</li>
-        <li>App icon and feature graphic SVG ready ✓</li>
-        <li>Need: 2-8 phone screenshots from your device</li>
+        <li>App icon PNG (512 + 1024) ✓</li>
+        <li>7 phone screenshots ✓</li>
         <li>App access: full access ✓</li>
         <li>Ads: Yes (AdMob) ✓</li>
         <li>Content rating: Everyone (no harmful content) ✓</li>
@@ -330,5 +437,26 @@ The service does NOT run in the background indefinitely. It is bound 1:1 to the 
         <li>Signed AAB ready to upload ✓</li>
     </ul>
 </div>
+
+<script>
+function copyEl(id) {
+    var el = document.getElementById(id);
+    var text = '';
+    el.childNodes.forEach(function(n) {
+        if (n.nodeType === 3) text += n.textContent;
+        else if (n.tagName !== 'BUTTON') text += n.innerText || n.textContent;
+    });
+    navigator.clipboard.writeText(text.trim()).then(function() {
+        el.classList.add('copied');
+        var btn = el.querySelector('button');
+        var oldText = btn.textContent;
+        btn.textContent = 'Copied ✓';
+        setTimeout(function() {
+            el.classList.remove('copied');
+            btn.textContent = oldText;
+        }, 1500);
+    });
+}
+</script>
 </body>
 </html>
