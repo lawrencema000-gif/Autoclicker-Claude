@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Clicker — Play Console Submission Reference</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; background: #f8fafc; padding: 24px; }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h1 { font-size: 32px; margin-bottom: 8px; color: #0f172a; }
+        h2 { font-size: 22px; margin-top: 36px; margin-bottom: 12px; color: #0f172a; padding-bottom: 8px; border-bottom: 2px solid #38bdf8; }
+        h3 { font-size: 16px; margin-top: 20px; margin-bottom: 8px; color: #0369a1; font-weight: 600; }
+        p, li { font-size: 14px; color: #475569; margin-bottom: 8px; }
+        ul, ol { padding-left: 24px; margin-bottom: 12px; }
+        .answer { background: #f0f9ff; border-left: 4px solid #38bdf8; padding: 12px 16px; margin: 8px 0; border-radius: 4px; }
+        .answer strong { color: #0c4a6e; }
+        .copy { background: #1e293b; color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 13px; white-space: pre-wrap; word-break: break-all; }
+        .url { background: #ecfdf5; padding: 8px 12px; border-radius: 6px; font-family: monospace; font-size: 13px; color: #065f46; display: inline-block; }
+        .toc { background: #f1f5f9; padding: 16px 24px; border-radius: 8px; margin: 16px 0 32px; }
+        .toc a { color: #0369a1; text-decoration: none; display: block; padding: 4px 0; }
+        .toc a:hover { text-decoration: underline; }
+        .pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px; }
+        .yes { background: #d1fae5; color: #065f46; }
+        .no { background: #fee2e2; color: #991b1b; }
+        .small { font-size: 13px; color: #64748b; margin-top: 4px; }
+        .date { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Auto Clicker — Play Console Submission Reference</h1>
+    <p class="date">Single source of truth for every Play Console form. Use this page to copy/paste answers.</p>
+
+    <div class="toc">
+        <strong>Quick links:</strong>
+        <a href="#essentials">App essentials (name, package, signing key)</a>
+        <a href="#privacy">Privacy policy URL</a>
+        <a href="#listing">Store listing (descriptions, copy, graphics)</a>
+        <a href="#access">App access</a>
+        <a href="#ads">Ads declaration</a>
+        <a href="#content-rating">Content rating questionnaire</a>
+        <a href="#target-audience">Target audience &amp; children</a>
+        <a href="#data-safety">Data safety form</a>
+        <a href="#government">Government apps</a>
+        <a href="#financial">Financial features</a>
+        <a href="#health">Health</a>
+        <a href="#news">News apps</a>
+        <a href="#covid">COVID-19 contact tracing</a>
+        <a href="#accessibility-decl">Accessibility service declaration</a>
+        <a href="#fgs">Foreground service special use</a>
+        <a href="#release">Production release (AAB)</a>
+    </div>
+
+    <!-- ============================================ -->
+    <h2 id="essentials">1. App essentials</h2>
+
+    <h3>App name (max 30 chars)</h3>
+    <div class="copy">Auto Clicker - Automatic Tap</div>
+
+    <h3>Package name (already locked)</h3>
+    <div class="copy">com.autoclicker.claude</div>
+
+    <h3>Default language</h3>
+    <div class="answer">English (United States) – en-US</div>
+
+    <h3>App or game</h3>
+    <div class="answer">App</div>
+
+    <h3>Free or paid</h3>
+    <div class="answer">Free</div>
+
+    <h3>Developer name (publicly shown)</h3>
+    <div class="copy">lawrencema000-gif</div>
+
+    <h3>Support email</h3>
+    <div class="copy">lawrence.ma000@gmail.com</div>
+
+    <h3>App category</h3>
+    <div class="answer">Tools</div>
+
+    <h3>Tags (pick 5 from list)</h3>
+    <div class="answer">Productivity, Utilities, Automation, Accessibility, Personalization</div>
+
+    <!-- ============================================ -->
+    <h2 id="privacy">2. Privacy policy</h2>
+    <h3>Privacy policy URL</h3>
+    <div class="copy">https://lawrencema000-gif.github.io/Autoclicker-Claude/privacy-policy.html</div>
+    <p class="small">Already live on GitHub Pages.</p>
+
+    <!-- ============================================ -->
+    <h2 id="listing">3. Store listing</h2>
+
+    <h3>Short description (max 80 chars)</h3>
+    <div class="copy">Automatic screen tapper with gesture recording, patterns &amp; anti-detection</div>
+
+    <h3>Full description (max 4000 chars)</h3>
+    <div class="copy">Auto Clicker is a powerful, free automatic screen tapper for Android. Set up automated taps, swipes, and complex gesture patterns — then let the app do the work while you focus on what matters.
+
+4 Clicking Modes:
+- Single Tap — Pick one point, clicks repeat automatically
+- Multi Tap — Set multiple points, clicks cycle through each one
+- Pattern — Choose from 7 geometric shapes (circle, grid, spiral, zigzag, diamond, random, custom)
+- Gesture Recording — Record your actual taps and swipes, then replay them perfectly
+
+Smart Anti-Detection:
+- Gaussian position randomization so no two taps hit the same pixel
+- Natural timing variation with acceleration curves
+- Human-like hold duration and micro-pauses
+- Fatigue simulation for truly undetectable automation
+
+Control From Anywhere:
+- Volume button trigger — Start/pause/stop from any app without switching
+- Floating bubble — Draggable play/pause button stays on screen
+- Notification controls — Pause, resume, or stop from the notification bar
+- Crosshair overlay — Always know where the next tap will land
+
+Full Script System:
+- Save unlimited automation scripts
+- Edit timing, loop count, and steps
+- Import/export scripts as JSON
+- Duplicate and share your best automations
+- History of past sessions
+
+Customizable Speed:
+- 6 speed presets from Turbo (10ms) to Hourly
+- Set exact intervals in milliseconds
+- Configure tap hold duration and swipe speed
+- Stop after X taps, X seconds, or X loops
+
+Built for Real Use:
+- Works with any app or game
+- Floating toolbar shows live stats (tap count, elapsed time, loop counter)
+- Battery optimization bypass keeps it running
+- Light &amp; dark theme with Material You support
+- Runs reliably in the background
+
+How It Works:
+1. Allow Auto Clicker to tap your screen (one-time setup)
+2. Choose your mode and press START
+3. Pick your target points on screen
+4. Auto Clicker runs automatically — pause, resume, or stop anytime
+
+No root required. Your scripts and data stay on your device — nothing is uploaded.
+
+Download Auto Clicker now and automate any repetitive screen interaction.</div>
+
+    <h3>App icon (512x512 PNG)</h3>
+    <p>Source SVG: <a href="icon-512.svg">icon-512.svg</a> — convert to PNG using any browser screenshot or SVG-to-PNG tool.</p>
+
+    <h3>Feature graphic (1024x500 PNG)</h3>
+    <p>Source SVG: <a href="feature-graphic.svg">feature-graphic.svg</a></p>
+
+    <h3>Phone screenshots (need 2-8)</h3>
+    <p>Take screenshots from your phone of:
+        <br>1. Home screen with the four modes
+        <br>2. A pattern preview
+        <br>3. Settings screen
+        <br>4. A profile being edited
+        <br>5. Floating toolbar in action over another app (optional but powerful)
+    </p>
+
+    <!-- ============================================ -->
+    <h2 id="access">4. App access</h2>
+    <h3>Is all of your app's functionality available without any access restrictions?</h3>
+    <div class="answer"><strong>Yes</strong> — All functionality is available without login, sign-up, or paywall.</div>
+
+    <!-- ============================================ -->
+    <h2 id="ads">5. Ads</h2>
+    <h3>Does your app contain ads?</h3>
+    <div class="answer"><strong>Yes</strong> <span class="pill yes">YES</span></div>
+    <p class="small">App uses Google AdMob to display App Open ads (on launch, with 5-min cooldown) and Banner ads (on Home and Settings screens).</p>
+
+    <!-- ============================================ -->
+    <h2 id="content-rating">6. Content rating questionnaire</h2>
+
+    <h3>Email for IARC contact</h3>
+    <div class="copy">lawrence.ma000@gmail.com</div>
+
+    <h3>Category</h3>
+    <div class="answer">Reference, News, or Educational <em>or</em> Utility, Productivity, Communication, or Other</div>
+
+    <h3>All questions about violence, sex, drugs, gambling, etc.</h3>
+    <div class="answer"><strong>NO</strong> to ALL questions</div>
+    <ul>
+        <li>Does the app contain violence? <strong>No</strong></li>
+        <li>Sexual content? <strong>No</strong></li>
+        <li>Profanity? <strong>No</strong></li>
+        <li>Drugs/alcohol/tobacco? <strong>No</strong></li>
+        <li>Gambling? <strong>No</strong></li>
+        <li>Crude humor? <strong>No</strong></li>
+        <li>User-generated content? <strong>No</strong> (scripts are stored locally only, not shared)</li>
+        <li>Shares user location? <strong>No</strong></li>
+        <li>Allows users to interact? <strong>No</strong></li>
+        <li>Allows purchase of digital goods? <strong>No</strong></li>
+    </ul>
+
+    <h3>Expected rating</h3>
+    <div class="answer">Everyone / 3+ (PEGI 3, USK 0, IARC 3+)</div>
+
+    <!-- ============================================ -->
+    <h2 id="target-audience">7. Target audience &amp; children</h2>
+
+    <h3>Target age groups</h3>
+    <div class="answer">18 and over</div>
+    <p class="small">Choosing 18+ avoids the strict COPPA compliance requirements that come with targeting children. The app works for all ages but isn't designed for kids.</p>
+
+    <h3>Is your app appealing to children?</h3>
+    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
+    <p class="small">Auto Clicker is a productivity utility — no game elements, no animations aimed at kids, no characters.</p>
+
+    <h3>Have you confirmed the app does not target children?</h3>
+    <div class="answer"><strong>Yes</strong></div>
+
+    <!-- ============================================ -->
+    <h2 id="data-safety">8. Data safety form</h2>
+
+    <h3>Does your app collect or share any of the required user data types?</h3>
+    <div class="answer"><strong>Yes</strong> — via Google AdMob SDK only</div>
+
+    <h3>Is all of the user data collected by your app encrypted in transit?</h3>
+    <div class="answer"><strong>Yes</strong> — all AdMob traffic uses HTTPS</div>
+
+    <h3>Do you provide a way for users to request that their data is deleted?</h3>
+    <div class="answer"><strong>Yes</strong> — Users can clear all app data via Android Settings → Apps → Auto Clicker → Storage → Clear data, or by uninstalling the app. There is no server-side data to delete.</div>
+
+    <h3>Data types collected</h3>
+    <ul>
+        <li><strong>Device or other IDs</strong> — Advertising ID
+            <ul>
+                <li>Collected by: AdMob</li>
+                <li>Shared: <strong>Yes</strong> (with Google AdMob)</li>
+                <li>Optional: <strong>No</strong> (user can opt out via Android Ads settings)</li>
+                <li>Purpose: Advertising or marketing</li>
+                <li>Encrypted in transit: <strong>Yes</strong></li>
+            </ul>
+        </li>
+    </ul>
+    <p class="small"><strong>NOT collected:</strong> Personal info, financial info, health info, messages, photos, contacts, location, web/app activity, files, audio, calendar, app info, device performance.</p>
+
+    <!-- ============================================ -->
+    <h2 id="government">9. Government apps</h2>
+    <h3>Is your app made by or on behalf of a government?</h3>
+    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
+
+    <!-- ============================================ -->
+    <h2 id="financial">10. Financial features</h2>
+    <h3>Does your app provide financial features?</h3>
+    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
+    <p class="small">No banking, lending, crypto, investment, insurance, or money transfer features.</p>
+
+    <!-- ============================================ -->
+    <h2 id="health">11. Health</h2>
+    <h3>Does your app collect health information?</h3>
+    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
+
+    <!-- ============================================ -->
+    <h2 id="news">12. News apps</h2>
+    <h3>Is your app a news app?</h3>
+    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
+
+    <!-- ============================================ -->
+    <h2 id="covid">13. COVID-19 contact tracing</h2>
+    <h3>Is your app a publicly available COVID-19 contact tracing or status app?</h3>
+    <div class="answer"><strong>No</strong> <span class="pill no">NO</span></div>
+
+    <!-- ============================================ -->
+    <h2 id="accessibility-decl">14. Accessibility service declaration</h2>
+    <h3>Why does your app need the Accessibility Service permission?</h3>
+    <div class="copy">Auto Clicker uses the Accessibility Service to perform automated touch gestures (taps, swipes, long-presses) at user-defined screen coordinates. This is the core function of the app — automating repetitive screen interactions that the user has explicitly configured.
+
+The Accessibility Service is used ONLY to:
+1. Dispatch touch gestures via dispatchGesture() at user-specified coordinates
+2. Display overlay controls (floating toolbar, picker, crosshair) over other apps
+3. Detect volume key presses for the optional start/stop trigger feature
+
+The Accessibility Service is NOT used to:
+- Read any screen content, text, or UI elements
+- Monitor the user's activity in other apps
+- Collect or transmit any data
+- Auto-fill, type, or enter any text
+
+Users explicitly enable this permission during onboarding, with a clear explanation of what it does. The functionality cannot be achieved through any other Android API.
+
+This is the standard mechanism used by all legitimate auto-clicker apps on the Play Store, as Android does not provide an alternative API for programmatic gesture dispatch.</div>
+
+    <!-- ============================================ -->
+    <h2 id="fgs">15. Foreground service special use declaration</h2>
+    <h3>Why does your app use FOREGROUND_SERVICE_SPECIAL_USE?</h3>
+    <div class="copy">Auto Clicker uses a foreground service to keep the auto-clicking session running while the user navigates to and interacts with other apps on their device. The user must be able to switch to a target app (game, utility, etc.) while the click sequence continues to execute.
+
+We use foregroundServiceType="specialUse" with subtype "automation" because:
+- The app's core function is user-controlled task automation
+- Existing foreground service types (mediaPlayback, location, etc.) do not match this use case
+- The service runs only while the user has explicitly started a click session
+- A persistent notification with stop/pause controls is shown the entire time the service runs
+- The session automatically stops when the user presses Stop, when the screen turns off (configurable), or after the configured stop condition is met
+
+The service does NOT run in the background indefinitely. It is bound 1:1 to the active click session that the user explicitly started.</div>
+
+    <!-- ============================================ -->
+    <h2 id="release">16. Production release (AAB upload)</h2>
+
+    <h3>Release notes (for first version)</h3>
+    <div class="copy">Initial release — Auto Clicker with 4 modes (Single, Multi, Pattern, Record), gesture recording, anti-detection, floating overlay controls, volume button trigger, and full script management.</div>
+
+    <h3>AAB file location</h3>
+    <div class="url">C:\Users\lmao\Desktop\mycursor\Autoclicker-Claude\app\build\outputs\bundle\release\app-release.aab</div>
+    <p class="small">Already signed with the production keystore. Just upload it.</p>
+
+    <h3>Country/region availability</h3>
+    <div class="answer">All countries / Worldwide</div>
+
+    <!-- ============================================ -->
+    <h2>Summary checklist</h2>
+    <ul>
+        <li>App name, package name, language ✓</li>
+        <li>Privacy policy URL ✓</li>
+        <li>Short and full description ✓</li>
+        <li>App icon and feature graphic SVG ready ✓</li>
+        <li>Need: 2-8 phone screenshots from your device</li>
+        <li>App access: full access ✓</li>
+        <li>Ads: Yes (AdMob) ✓</li>
+        <li>Content rating: Everyone (no harmful content) ✓</li>
+        <li>Target audience: 18+, not appealing to children ✓</li>
+        <li>Data safety: AdID via AdMob, encrypted in transit ✓</li>
+        <li>Government / Financial / Health / News / COVID: All NO ✓</li>
+        <li>Accessibility Service declaration text ✓</li>
+        <li>Foreground Service Special Use declaration text ✓</li>
+        <li>Signed AAB ready to upload ✓</li>
+    </ul>
+</div>
+</body>
+</html>
