@@ -24,6 +24,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.autoclicker.claude.R
 import com.autoclicker.claude.ads.AdManager
 import com.autoclicker.claude.data.CommandBus
 import com.autoclicker.claude.data.TapProfile
@@ -82,10 +83,27 @@ class MainActivity : ComponentActivity() {
         val serviceConnected by vm.serviceConnected.collectAsState()
         val editingProfile by vm.editingProfile.collectAsState()
 
+        // Prominent disclosure must be shown before sending the user to system Accessibility
+        // settings. Required by Google Play policy for AccessibilityService apps.
+        var showDisclosure by remember { mutableStateOf(false) }
+        if (showDisclosure) {
+            AccessibilityDisclosureScreen(
+                onAgree = {
+                    showDisclosure = false
+                    openAccessibilitySettings()
+                },
+                onDecline = {
+                    showDisclosure = false
+                    Toast.makeText(this, getString(R.string.disclosure_declined_toast), Toast.LENGTH_LONG).show()
+                }
+            )
+            return
+        }
+
         // Show onboarding if not complete and service not connected
         if (!onboardingComplete && !serviceConnected) {
             OnboardingScreen(
-                onOpenAccessibility = { openAccessibilitySettings() },
+                onOpenAccessibility = { showDisclosure = true },
                 onRequestBattery = { requestBatteryOptimization() },
                 onComplete = { vm.completeOnboarding() }
             )
@@ -150,7 +168,7 @@ class MainActivity : ComponentActivity() {
                     2 -> HistoryScreen(vm)
                     3 -> SettingsScreen(
                         vm = vm,
-                        onOpenAccessibility = { openAccessibilitySettings() },
+                        onOpenAccessibility = { showDisclosure = true },
                         onRequestBattery = { requestBatteryOptimization() }
                     )
                 }

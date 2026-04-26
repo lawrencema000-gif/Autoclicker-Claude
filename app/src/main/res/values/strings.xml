@@ -11,6 +11,23 @@
     <string name="tab_history">History</string>
     <string name="tab_settings">Settings</string>
 
+    <!-- Prominent disclosure (Accessibility Service consent) -->
+    <string name="disclosure_title">Permission required: Accessibility Service</string>
+    <string name="disclosure_intro">Auto Clicker needs the Android Accessibility Service to perform automated screen taps for you. Before you continue, here is exactly what this permission will and will not be used for.</string>
+    <string name="disclosure_uses_heading">Auto Clicker will use this permission ONLY to:</string>
+    <string name="disclosure_use_1">• Dispatch tap, swipe, long-press, and gesture commands at screen coordinates that you choose.</string>
+    <string name="disclosure_use_2">• Show overlay controls (the floating bubble, toolbar, and crosshair) on top of other apps so you can pause, resume, or stop a session at any time.</string>
+    <string name="disclosure_use_3">• Detect volume key presses while a session is running, when you have explicitly enabled the Volume button trigger feature.</string>
+    <string name="disclosure_nots_heading">Auto Clicker will NEVER:</string>
+    <string name="disclosure_not_1">• Read text, content, passwords, messages, or any UI elements on your screen.</string>
+    <string name="disclosure_not_2">• Monitor, track, or record what you do in any other app.</string>
+    <string name="disclosure_not_3">• Collect, store, or transmit personal data to any server. Everything stays on your device.</string>
+    <string name="disclosure_not_4">• Auto-fill, type, or enter text on your behalf.</string>
+    <string name="disclosure_consent_label">By tapping Agree &amp; Continue, you allow Auto Clicker to be enabled in your device\'s Accessibility settings on the next screen. You can revoke this permission at any time by returning to Settings → Accessibility and turning Auto Clicker off.</string>
+    <string name="disclosure_agree">Agree &amp; Continue</string>
+    <string name="disclosure_decline">No thanks</string>
+    <string name="disclosure_declined_toast">Auto Clicker can\'t click without the Accessibility permission. Tap Allow again to review and grant it.</string>
+
     <!-- Onboarding -->
     <string name="onboarding_welcome">Welcome to Auto Clicker</string>
     <string name="onboarding_subtitle">Two quick steps to set up</string>
