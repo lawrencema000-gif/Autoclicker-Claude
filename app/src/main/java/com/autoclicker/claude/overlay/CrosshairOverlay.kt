@@ -5,31 +5,35 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import com.autoclicker.claude.data.ClickPoint
 import com.autoclicker.claude.data.CommandBus
+import com.autoclicker.claude.data.RunState
 
 @SuppressLint("ClickableViewAccessibility")
 class CrosshairOverlay(private val service: AccessibilityService) {
 
     private val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var overlayView: CrosshairView? = null
-    private var points: List<ClickPoint> = emptyList()
+    private var points: MutableList<ClickPoint> = mutableListOf()
     private var activeIndex = -1
 
     fun show(targetPoints: List<ClickPoint>) {
         dismiss()
         if (targetPoints.isEmpty()) return
-        points = targetPoints
+        points = targetPoints.toMutableList()
 
         val view = CrosshairView(service)
+        // Touchable so the user can drag points while paused; non-blocking otherwise
+        // because the per-tap touch handler returns false (lets touches pass through
+        // when no crosshair is being dragged).
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
@@ -38,7 +42,7 @@ class CrosshairOverlay(private val service: AccessibilityService) {
         }
 
         overlayView = view
-        wm.addView(view, params)
+        try { wm.addView(view, params) } catch (_: Exception) { overlayView = null }
     }
 
     fun updateActiveIndex(index: Int) {
@@ -46,10 +50,16 @@ class CrosshairOverlay(private val service: AccessibilityService) {
         overlayView?.invalidate()
     }
 
+    fun updatePoint(index: Int, x: Float, y: Float) {
+        if (index !in points.indices) return
+        points[index] = points[index].copy(x = x, y = y)
+        overlayView?.invalidate()
+    }
+
     fun dismiss() {
         overlayView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         overlayView = null
-        points = emptyList()
+        points.clear()
         activeIndex = -1
     }
 
@@ -70,7 +80,7 @@ class CrosshairOverlay(private val service: AccessibilityService) {
             isAntiAlias = true
         }
         private val circleFillPaint = Paint().apply {
-            color = Color.parseColor("#1A38BDF8") // very transparent
+            color = Color.parseColor("#1A38BDF8")
             style = Paint.Style.FILL
             isAntiAlias = true
         }
@@ -82,6 +92,17 @@ class CrosshairOverlay(private val service: AccessibilityService) {
         }
         private val activeFillPaint = Paint().apply {
             color = Color.parseColor("#2234D399")
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+        private val draggingPaint = Paint().apply {
+            color = Color.parseColor("#F59E0B")
+            style = Paint.Style.STROKE
+            strokeWidth = 3f * density
+            isAntiAlias = true
+        }
+        private val draggingFillPaint = Paint().apply {
+            color = Color.parseColor("#33F59E0B")
             style = Paint.Style.FILL
             isAntiAlias = true
         }
@@ -105,40 +126,116 @@ class CrosshairOverlay(private val service: AccessibilityService) {
             isAntiAlias = true
             pathEffect = DashPathEffect(floatArrayOf(4f * density, 6f * density), 0f)
         }
+        private val hintPaint = Paint().apply {
+            color = Color.parseColor("#F59E0B")
+            textSize = 10f * density
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+            isFakeBoldText = true
+        }
 
         private val crossLen = 14f * density
         private val circleR = 18f * density
+        private val touchSlop = 36f * density
+
+        private var draggingIndex = -1
+        private var dragStartX = 0f
+        private var dragStartY = 0f
+        private var dragOffsetX = 0f
+        private var dragOffsetY = 0f
+
+        init {
+            setOnTouchListener { _, event -> handleTouch(event) }
+        }
+
+        private fun handleTouch(event: MotionEvent): Boolean {
+            // Crosshairs are draggable ONLY when the session is paused. Otherwise
+            // pass touches through so the running app stays interactive.
+            val paused = CommandBus.runState.value == RunState.PAUSED
+            if (!paused && draggingIndex < 0) return false
+
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (!paused) return false
+                    val hit = points.indexOfFirst { pt ->
+                        val dx = event.x - pt.x
+                        val dy = event.y - pt.y
+                        (dx * dx + dy * dy) <= touchSlop * touchSlop
+                    }
+                    if (hit >= 0) {
+                        draggingIndex = hit
+                        dragStartX = event.x
+                        dragStartY = event.y
+                        dragOffsetX = event.x - points[hit].x
+                        dragOffsetY = event.y - points[hit].y
+                        invalidate()
+                        return true
+                    }
+                    return false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (draggingIndex < 0) return false
+                    val newX = (event.x - dragOffsetX).coerceIn(0f, width.toFloat())
+                    val newY = (event.y - dragOffsetY).coerceIn(0f, height.toFloat())
+                    points[draggingIndex] = points[draggingIndex].copy(x = newX, y = newY)
+                    invalidate()
+                    return true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (draggingIndex < 0) return false
+                    val finalX = points[draggingIndex].x
+                    val finalY = points[draggingIndex].y
+                    CommandBus.send(
+                        com.autoclicker.claude.data.TapCommand.MoveCrosshair(draggingIndex, finalX, finalY)
+                    )
+                    draggingIndex = -1
+                    invalidate()
+                    return true
+                }
+            }
+            return false
+        }
 
         override fun onDraw(canvas: Canvas) {
             if (points.isEmpty()) return
 
-            // Draw connecting lines between points (execution order)
             for (i in 0 until points.size - 1) {
                 canvas.drawLine(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y, linePaint)
             }
 
-            // Draw each crosshair
             points.forEachIndexed { idx, pt ->
-                val isActive = idx == activeIndex
-                val cPaint = if (isActive) activePaint else circlePaint
-                val fPaint = if (isActive) activeFillPaint else circleFillPaint
+                val isDragging = idx == draggingIndex
+                val isActive = idx == activeIndex && !isDragging
+                val cPaint = when {
+                    isDragging -> draggingPaint
+                    isActive -> activePaint
+                    else -> circlePaint
+                }
+                val fPaint = when {
+                    isDragging -> draggingFillPaint
+                    isActive -> activeFillPaint
+                    else -> circleFillPaint
+                }
                 val nPaint = if (isActive) activeNumberPaint else numberPaint
-                val r = if (isActive) circleR + 4f * density else circleR
+                val r = if (isActive || isDragging) circleR + 4f * density else circleR
 
-                // Target circle
                 canvas.drawCircle(pt.x, pt.y, r, fPaint)
                 canvas.drawCircle(pt.x, pt.y, r, cPaint)
-
-                // Crosshair lines
                 canvas.drawLine(pt.x - crossLen, pt.y, pt.x + crossLen, pt.y, cPaint)
                 canvas.drawLine(pt.x, pt.y - crossLen, pt.x, pt.y + crossLen, cPaint)
-
-                // Center dot
                 val dotPaint = Paint(cPaint).apply { style = Paint.Style.FILL }
                 canvas.drawCircle(pt.x, pt.y, 2.5f * density, dotPaint)
-
-                // Step number (above the crosshair)
                 canvas.drawText("${idx + 1}", pt.x, pt.y - r - 4f * density, nPaint)
+            }
+
+            // Pause-state hint so the user discovers the drag affordance
+            if (CommandBus.runState.value == RunState.PAUSED && draggingIndex < 0 && points.isNotEmpty()) {
+                canvas.drawText(
+                    "Drag a point to move it",
+                    points[0].x,
+                    (points[0].y + circleR + 18f * density).coerceAtMost(height.toFloat() - 8f * density),
+                    hintPaint
+                )
             }
         }
     }

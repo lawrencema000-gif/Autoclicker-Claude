@@ -20,6 +20,9 @@ sealed class TapCommand {
     data object ExitPickMode : TapCommand()
     data object EnterRecordMode : TapCommand()
     data object ShowProfilePicker : TapCommand()
+    data object DismissToolbar : TapCommand()
+    data object RestartLastProfile : TapCommand()
+    data class MoveCrosshair(val index: Int, val x: Float, val y: Float) : TapCommand()
 }
 
 data class PickResult(val x: Float, val y: Float)

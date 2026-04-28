@@ -35,10 +35,15 @@ class AutoClickService : AccessibilityService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + exceptionHandler)
     private var executionJob: Job? = null
     private val paused = AtomicBoolean(false)
+    private val isStopping = AtomicBoolean(false)
     private var tapCount = 0
     private var startTimeMs = 0L
     private var lastTapX = -1f
     private var lastTapY = -1f
+
+    // Mutable copy of running profile's points so the user can drag crosshairs
+    // while paused and have the new positions applied on resume.
+    private val runningSteps: MutableList<ClickPoint> = mutableListOf()
 
     private var pickOverlay: PickOverlayManager? = null
     private var floatingToolbar: FloatingToolbarManager? = null
@@ -102,6 +107,20 @@ class AutoClickService : AccessibilityService() {
                     is TapCommand.Stop -> stopExecution()
                     is TapCommand.Pause -> pauseExecution()
                     is TapCommand.Resume -> resumeExecution()
+                    is TapCommand.DismissToolbar -> floatingToolbar?.dismiss()
+                    is TapCommand.RestartLastProfile -> {
+                        CommandBus.lastProfile.value?.let { startProfile(it) }
+                    }
+                    is TapCommand.MoveCrosshair -> {
+                        if (cmd.index in runningSteps.indices) {
+                            runningSteps[cmd.index] = runningSteps[cmd.index].copy(x = cmd.x, y = cmd.y)
+                            crosshairOverlay?.updatePoint(cmd.index, cmd.x, cmd.y)
+                            // Persist new positions in lastProfile so a restart picks them up
+                            CommandBus.lastProfile.value?.let { profile ->
+                                CommandBus.setLastProfile(profile.copy(steps = runningSteps.toList()))
+                            }
+                        }
+                    }
                     is TapCommand.ExitPickMode -> { /* handled by PickOverlayManager */ }
                     is TapCommand.EnterRecordMode -> gestureRecorder?.show { steps ->
                         CommandBus.emitRecordingResult(steps)
@@ -226,6 +245,7 @@ class AutoClickService : AccessibilityService() {
         paused.set(false)
         lastTapX = -1f
         lastTapY = -1f
+        isStopping.set(false)
 
         val anti = profile.antiDetection
         AntiDetection.resetSession()
@@ -244,6 +264,10 @@ class AutoClickService : AccessibilityService() {
 
         val effectiveProfile = profile.copy(steps = steps)
 
+        // Snapshot the steps into runningSteps so they can be mutated by user drags.
+        runningSteps.clear()
+        runningSteps.addAll(steps)
+
         CommandBus.setRunState(RunState.RUNNING)
         CommandBus.setLastProfile(effectiveProfile)
         CommandBus.updateStats(ExecutionStats(profileName = profile.name))
@@ -253,7 +277,7 @@ class AutoClickService : AccessibilityService() {
         }
 
         floatingToolbar?.show()
-        crosshairOverlay?.show(effectiveProfile.steps)
+        crosshairOverlay?.show(runningSteps)
         TapForegroundService.start(this, profile.name)
 
         executionJob = scope.launch {
@@ -274,13 +298,19 @@ class AutoClickService : AccessibilityService() {
                 for (loop in 1..maxLoops) {
                     if (!isActive) break
 
-                    for ((stepIdx, step) in effectiveProfile.steps.withIndex()) {
+                    for (stepIdx in runningSteps.indices) {
                         if (!isActive) break
                         waitWhilePaused()
                         if (shouldStop(effectiveProfile.rules)) break
 
-                        // Compute delay with anti-detection jitter
-                        val baseDelay = computeDelay(step.delayBefore, effectiveProfile.rules)
+                        // Read the (possibly user-dragged) point fresh each iteration
+                        val step = runningSteps.getOrNull(stepIdx) ?: break
+
+                        // Per-tap delay: honor the live interval slider when set, else
+                        // fall back to the recorded step delay.
+                        val liveOverride = CommandBus.liveIntervalOverride.value
+                        val effectiveStepDelay = if (liveOverride > 0) liveOverride else step.delayBefore
+                        val baseDelay = computeDelay(effectiveStepDelay, effectiveProfile.rules)
                         val jitteredDelay = AntiDetection.jitterInterval(baseDelay, anti)
                         if (jitteredDelay > 0) delay(jitteredDelay)
 
@@ -293,9 +323,11 @@ class AutoClickService : AccessibilityService() {
                             if (!isActive || shouldStop(effectiveProfile.rules)) break
                             waitWhilePaused()
 
+                            // Re-read the live point each rep so user drags during pause apply
+                            val live = runningSteps.getOrNull(stepIdx) ?: step
                             when (step.action) {
                                 ActionType.TAP -> {
-                                    var (tx, ty) = AntiDetection.randomizePosition(step.x, step.y, anti)
+                                    var (tx, ty) = AntiDetection.randomizePosition(live.x, live.y, anti)
                                     val (fx, fy) = AntiDetection.avoidRepetition(tx, ty, lastTapX, lastTapY, anti)
                                     tx = fx; ty = fy
                                     val hold = AntiDetection.humanizeHold(step.holdDuration, anti)
@@ -304,13 +336,13 @@ class AutoClickService : AccessibilityService() {
                                     tapCount++
                                 }
                                 ActionType.SWIPE -> {
-                                    val (sx, sy) = AntiDetection.randomizePosition(step.x, step.y, anti)
+                                    val (sx, sy) = AntiDetection.randomizePosition(live.x, live.y, anti)
                                     val (ex, ey) = AntiDetection.randomizePosition(step.swipeToX, step.swipeToY, anti)
                                     dispatchSwipe(sx, sy, ex, ey, step.swipeDuration)
                                     tapCount++
                                 }
                                 ActionType.LONG_PRESS -> {
-                                    val (lx, ly) = AntiDetection.randomizePosition(step.x, step.y, anti)
+                                    val (lx, ly) = AntiDetection.randomizePosition(live.x, live.y, anti)
                                     val hold = AntiDetection.humanizeHold(step.holdDuration.coerceAtLeast(400L), anti)
                                     dispatchTap(lx, ly, hold)
                                     lastTapX = lx; lastTapY = ly
@@ -321,7 +353,7 @@ class AutoClickService : AccessibilityService() {
                                 }
                                 ActionType.PATTERN -> {
                                     // Pattern steps are pre-expanded, treated as TAP
-                                    val (px, py) = AntiDetection.randomizePosition(step.x, step.y, anti)
+                                    val (px, py) = AntiDetection.randomizePosition(live.x, live.y, anti)
                                     val hold = AntiDetection.humanizeHold(step.holdDuration, anti)
                                     dispatchTap(px, py, hold)
                                     tapCount++
@@ -352,7 +384,7 @@ class AutoClickService : AccessibilityService() {
                             }
                         }
 
-                        if (stepIdx < effectiveProfile.steps.size - 1) {
+                        if (stepIdx < runningSteps.size - 1) {
                             val liveInterval = CommandBus.liveIntervalOverride.value.takeIf { it > 0 } ?: effectiveProfile.intervalMs
                             val interStep = AntiDetection.jitterInterval(liveInterval, anti)
                             delay(interStep)
@@ -372,17 +404,27 @@ class AutoClickService : AccessibilityService() {
     }
 
     private fun stopExecution() {
-        executionJob?.cancel()
-        executionJob = null
-        paused.set(false)
+        // Idempotent guard: prevents the finally-block recursion from double-firing
+        // dismiss/refresh during cancellation.
+        if (!isStopping.compareAndSet(false, true)) return
 
-        unregisterScreenOffReceiver()
-        floatingToolbar?.dismiss()
-        crosshairOverlay?.dismiss()
-        TapForegroundService.stop(this)
+        try {
+            executionJob?.cancel()
+            executionJob = null
+            paused.set(false)
 
-        CommandBus.setRunState(RunState.IDLE)
-        floatingBubble?.refresh()
+            unregisterScreenOffReceiver()
+            // Toolbar persists after stop so the user can restart or close it
+            // explicitly; only crosshair + foreground notification go away.
+            crosshairOverlay?.dismiss()
+            TapForegroundService.stop(this)
+
+            CommandBus.setRunState(RunState.IDLE)
+            floatingToolbar?.refresh()
+            floatingBubble?.refresh()
+        } finally {
+            isStopping.set(false)
+        }
     }
 
     private fun pauseExecution() {

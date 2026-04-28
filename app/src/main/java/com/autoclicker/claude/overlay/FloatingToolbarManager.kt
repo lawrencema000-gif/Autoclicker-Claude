@@ -42,7 +42,7 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
 
         val density = service.resources.displayMetrics.density
         val widthPx = (52 * density).toInt()
-        val heightPx = (160 * density).toInt()
+        val heightPx = (200 * density).toInt()
 
         val view = ToolbarView(service).apply {
             contentDescription = "Auto Clicker toolbar. Shows tap count, elapsed time, and play, pause, stop, settings controls."
@@ -84,7 +84,7 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
 
         toolbarView = view
         layoutParams = params
-        wm.addView(view, params)
+        try { wm.addView(view, params) } catch (_: Exception) { toolbarView = null; layoutParams = null }
     }
 
     fun dismiss() {
@@ -103,7 +103,7 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
             p.height = (320 * density).toInt()
         } else {
             p.width = (52 * density).toInt()
-            p.height = (160 * density).toInt()
+            p.height = (200 * density).toInt()
         }
         try { wm.updateViewLayout(toolbarView, p) } catch (_: Exception) {}
         toolbarView?.invalidate()
@@ -132,14 +132,24 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
 
             canvas.drawRoundRect(0f, 0f, w, h, 16f * density, 16f * density, bgPaint)
 
-            // Drag handle
+            // Top bar: drag handle (left/center) + close button (right)
             val dotY = 8f * density; val dotR = 1.5f * density
-            canvas.drawCircle(w / 2f - 6f * density, dotY, dotR, dragHintPaint)
-            canvas.drawCircle(w / 2f, dotY, dotR, dragHintPaint)
-            canvas.drawCircle(w / 2f + 6f * density, dotY, dotR, dragHintPaint)
+            canvas.drawCircle(w / 2f - 8f * density, dotY, dotR, dragHintPaint)
+            canvas.drawCircle(w / 2f - 2f * density, dotY, dotR, dragHintPaint)
+            canvas.drawCircle(w / 2f + 4f * density, dotY, dotR, dragHintPaint)
 
-            var y = 16f * density
+            val closeSize = 14f * density
+            val closeRect = RectF(w - closeSize - 4f * density, 2f * density, w - 4f * density, 2f * density + closeSize)
+            buttons.add(ButtonDef(closeRect, "close_x", 0))
+            val closePaint = Paint(dragHintPaint).apply { color = Color.parseColor("#94A3B8"); strokeWidth = 1.5f * density }
+            canvas.drawLine(closeRect.left + 3f * density, closeRect.top + 3f * density,
+                closeRect.right - 3f * density, closeRect.bottom - 3f * density, closePaint)
+            canvas.drawLine(closeRect.right - 3f * density, closeRect.top + 3f * density,
+                closeRect.left + 3f * density, closeRect.bottom - 3f * density, closePaint)
+
+            var y = 18f * density
             val stats = CommandBus.stats.value
+            val runState = CommandBus.runState.value
 
             if (!expanded) {
                 // COMPACT VIEW
@@ -151,10 +161,13 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                 canvas.drawText(timeText, w / 2f, y + 10f * density, statsPaint)
                 y += 16f * density
 
-                // Play/Pause
-                val isPaused = CommandBus.runState.value == RunState.PAUSED
-                val playColor = if (isPaused) Color.parseColor("#38BDF8") else Color.parseColor("#34D399")
-                val playLabel = if (isPaused) "▶" else "⏸"
+                // Play / Pause / (Restart when idle)
+                val playColor: Int; val playLabel: String
+                when (runState) {
+                    RunState.PAUSED -> { playColor = Color.parseColor("#38BDF8"); playLabel = "▶" }
+                    RunState.IDLE -> { playColor = Color.parseColor("#38BDF8"); playLabel = "▶" }
+                    else -> { playColor = Color.parseColor("#34D399"); playLabel = "⏸" }
+                }
                 val playRect = RectF(pad, y, w - pad, y + btnH)
                 buttons.add(ButtonDef(playRect, playLabel, playColor))
                 btnPaint.color = playColor
@@ -162,12 +175,21 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                 canvas.drawText(playLabel, playRect.centerX(), playRect.centerY() + 4f * density, btnTextPaint)
                 y += btnH + gap
 
-                // Stop
+                // Stop (disabled / faded when idle, but always present)
+                val stopColor = if (runState == RunState.IDLE) Color.parseColor("#581719") else Color.parseColor("#F87171")
                 val stopRect = RectF(pad, y, w - pad, y + btnH)
-                buttons.add(ButtonDef(stopRect, "⏹", Color.parseColor("#F87171")))
-                btnPaint.color = Color.parseColor("#F87171")
+                buttons.add(ButtonDef(stopRect, "⏹", stopColor))
+                btnPaint.color = stopColor
                 canvas.drawRoundRect(stopRect, 8f * density, 8f * density, btnPaint)
                 canvas.drawText("⏹", stopRect.centerX(), stopRect.centerY() + 4f * density, btnTextPaint)
+                y += btnH + gap
+
+                // Close (dismiss toolbar entirely)
+                val xRect = RectF(pad, y, w - pad, y + btnH)
+                buttons.add(ButtonDef(xRect, "close", Color.parseColor("#1E293B")))
+                btnPaint.color = Color.parseColor("#1E293B")
+                canvas.drawRoundRect(xRect, 8f * density, 8f * density, btnPaint)
+                canvas.drawText("✕", xRect.centerX(), xRect.centerY() + 4f * density, btnTextPaint)
                 y += btnH + gap
 
                 // Gear (expand)
@@ -286,8 +308,23 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                 if (btn.rect.contains(x, y)) {
                     when {
                         btn.label == "⏸" -> CommandBus.send(TapCommand.Pause)
-                        btn.label == "▶" -> CommandBus.send(TapCommand.Resume)
-                        btn.label == "⏹" -> CommandBus.send(TapCommand.Stop)
+                        btn.label == "▶" -> {
+                            // ▶ resumes a paused session OR restarts the last profile when idle
+                            if (CommandBus.runState.value == RunState.PAUSED) {
+                                CommandBus.send(TapCommand.Resume)
+                            } else {
+                                CommandBus.send(TapCommand.RestartLastProfile)
+                            }
+                        }
+                        btn.label == "⏹" -> {
+                            if (CommandBus.runState.value != RunState.IDLE) {
+                                CommandBus.send(TapCommand.Stop)
+                            }
+                        }
+                        btn.label == "close" || btn.label == "close_x" -> {
+                            CommandBus.send(TapCommand.Stop)
+                            CommandBus.send(TapCommand.DismissToolbar)
+                        }
                         btn.label == "⚙" || btn.label == "collapse" -> toggleExpanded()
                         btn.label.startsWith("speed_") -> {
                             val ms = btn.label.removePrefix("speed_").toLongOrNull() ?: return
