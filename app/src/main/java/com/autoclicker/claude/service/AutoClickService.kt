@@ -53,6 +53,7 @@ class AutoClickService : AccessibilityService() {
     private var profilePicker: ProfilePickerOverlay? = null
     private var crosshairOverlay: CrosshairOverlay? = null
     private var screenOffReceiver: BroadcastReceiver? = null
+    private var intentTriggerReceiver: IntentTriggerReceiver? = null
 
     // Service-side pick flow (works when UI is not active)
     private val serviceSidePickPoints = mutableListOf<ClickPoint>()
@@ -62,6 +63,7 @@ class AutoClickService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         CommandBus.setServiceConnected(true)
+        registerIntentTriggerReceiver()
 
         pickOverlay = PickOverlayManager(this)
         floatingToolbar = FloatingToolbarManager(this)
@@ -220,6 +222,7 @@ class AutoClickService : AccessibilityService() {
         floatingBubble?.dismiss()
         profilePicker?.dismiss()
         crosshairOverlay?.dismiss()
+        unregisterIntentTriggerReceiver()
         CommandBus.setServiceConnected(false)
         scope.cancel()
         return super.onUnbind(intent)
@@ -233,6 +236,7 @@ class AutoClickService : AccessibilityService() {
         floatingBubble?.dismiss()
         profilePicker?.dismiss()
         crosshairOverlay?.dismiss()
+        unregisterIntentTriggerReceiver()
         CommandBus.setServiceConnected(false)
         scope.cancel()
     }
@@ -488,7 +492,12 @@ class AutoClickService : AccessibilityService() {
         val maxY = (metrics.heightPixels - 1).toFloat()
         val sx = x1.coerceIn(0f, maxX); val sy = y1.coerceIn(0f, maxY)
         val ex = x2.coerceIn(0f, maxX); val ey = y2.coerceIn(0f, maxY)
-        val path = Path().apply { moveTo(sx, sy); lineTo(ex, ey) }
+        // Curved Bezier path with ease-in/ease-out for human-like swipe
+        val curve = AntiDetection.naturalSwipePath(sx, sy, ex, ey)
+        val path = Path().apply {
+            moveTo(curve.first().first, curve.first().second)
+            curve.drop(1).forEach { (x, y) -> lineTo(x, y) }
+        }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs.coerceAtLeast(1L)))
             .build()
@@ -519,5 +528,31 @@ class AutoClickService : AccessibilityService() {
     private fun unregisterScreenOffReceiver() {
         val receiver = screenOffReceiver ?: return
         try { unregisterReceiver(receiver) } catch (_: Exception) {} finally { screenOffReceiver = null }
+    }
+
+    private fun registerIntentTriggerReceiver() {
+        if (intentTriggerReceiver != null) return
+        val receiver = IntentTriggerReceiver(applicationContext)
+        val filter = IntentFilter().apply {
+            addAction(IntentTriggerReceiver.ACTION_START)
+            addAction(IntentTriggerReceiver.ACTION_STOP)
+            addAction(IntentTriggerReceiver.ACTION_PAUSE)
+            addAction(IntentTriggerReceiver.ACTION_RESUME)
+            addAction(IntentTriggerReceiver.ACTION_RESTART_LAST)
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(receiver, filter, RECEIVER_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(receiver, filter)
+            }
+            intentTriggerReceiver = receiver
+        } catch (_: Exception) {}
+    }
+
+    private fun unregisterIntentTriggerReceiver() {
+        val receiver = intentTriggerReceiver ?: return
+        try { unregisterReceiver(receiver) } catch (_: Exception) {} finally { intentTriggerReceiver = null }
     }
 }

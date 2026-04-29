@@ -154,12 +154,16 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
             if (!expanded) {
                 // COMPACT VIEW
                 canvas.drawText("${stats.totalTaps}", w / 2f, y + 12f * density, tapCountPaint)
-                y += 16f * density
+                y += 14f * density
                 val elapsed = stats.elapsedMs / 1000
                 val timeText = if (elapsed >= 3600) String.format("%d:%02d:%02d", elapsed / 3600, (elapsed % 3600) / 60, elapsed % 60)
                 else String.format("%d:%02d", elapsed / 60, elapsed % 60)
                 canvas.drawText(timeText, w / 2f, y + 10f * density, statsPaint)
-                y += 16f * density
+                y += 12f * density
+                val cps = if (stats.elapsedMs > 0) stats.totalTaps * 1000.0 / stats.elapsedMs else 0.0
+                val cpsText = if (cps >= 10) String.format("%.0f cps", cps) else String.format("%.1f cps", cps)
+                canvas.drawText(cpsText, w / 2f, y + 10f * density, statsPaint)
+                y += 14f * density
 
                 // Play / Pause / (Restart when idle)
                 val playColor: Int; val playLabel: String
@@ -207,7 +211,9 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                 val elapsed = stats.elapsedMs / 1000
                 val timeText = if (elapsed >= 3600) String.format("%d:%02d:%02d", elapsed / 3600, (elapsed % 3600) / 60, elapsed % 60)
                 else String.format("%d:%02d", elapsed / 60, elapsed % 60)
-                canvas.drawText("$timeText  L${stats.currentLoop}", w / 2f, y + 10f * density, statsPaint)
+                val cps = if (stats.elapsedMs > 0) stats.totalTaps * 1000.0 / stats.elapsedMs else 0.0
+                val cpsText = if (cps >= 10) String.format("%.0f cps", cps) else String.format("%.1f cps", cps)
+                canvas.drawText("$timeText  L${stats.currentLoop}  $cpsText", w / 2f, y + 10f * density, statsPaint)
                 y += 18f * density
 
                 // Control buttons row

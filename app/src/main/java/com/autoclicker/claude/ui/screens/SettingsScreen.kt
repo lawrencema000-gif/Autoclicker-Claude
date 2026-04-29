@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -435,6 +436,45 @@ fun SettingsScreen(
                     Text("Disable to prevent system stopping the app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 FilledTonalButton(onClick = onRequestBattery, shape = RoundedCornerShape(12.dp)) { Text("Disable") }
+            }
+        }
+
+        // OEM autostart (Xiaomi/OPPO/Vivo/Huawei/etc) — the #1 reliability fix
+        if (com.autoclicker.claude.util.OemAutostart.isAggressiveOem()) {
+            val ctx = LocalContext.current
+            val vendor = com.autoclicker.claude.util.OemAutostart.detectVendor()
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Allow autostart (${vendor.displayName})", fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "Required so your device doesn't kill Auto Clicker after a few minutes.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        com.autoclicker.claude.util.OemAutostart.instructionsFor(vendor),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FilledTonalButton(
+                        onClick = {
+                            com.autoclicker.claude.util.OemAutostart.openAutostartScreen(ctx)
+                            com.autoclicker.claude.util.OemAutostart.showHint(ctx)
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Open autostart settings") }
+                }
             }
         }
 
