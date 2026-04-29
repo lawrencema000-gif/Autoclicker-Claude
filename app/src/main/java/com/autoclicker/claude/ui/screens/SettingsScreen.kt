@@ -390,6 +390,26 @@ fun SettingsScreen(
             }
         }
 
+        // ===== PAUSE ON TOUCH =====
+        val pauseOnTouchEnabled by CommandBus.pauseOnTouchEnabled.collectAsState()
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.PanTool, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Pause when I touch", fontWeight = FontWeight.SemiBold)
+                    Text("Auto-pauses when you touch the screen, resumes ~1.5s after you let go", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = pauseOnTouchEnabled, onCheckedChange = { CommandBus.setPauseOnTouchEnabled(it) })
+            }
+        }
+
         // ===== ACCESSIBILITY SERVICE =====
         Card(
             colors = CardDefaults.cardColors(

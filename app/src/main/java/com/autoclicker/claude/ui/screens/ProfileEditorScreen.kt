@@ -277,16 +277,21 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                                     ActionType.LONG_PRESS -> "Long Press"
                                     ActionType.DELAY -> "Delay"
                                     ActionType.PATTERN -> "Pattern"
+                                    ActionType.DOUBLE_TAP -> "Double Tap"
+                                    ActionType.PINCH_IN -> "Pinch In"
+                                    ActionType.PINCH_OUT -> "Pinch Out"
                                 },
                                 fontWeight = FontWeight.SemiBold,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
                                 when (step.action) {
-                                    ActionType.TAP, ActionType.LONG_PRESS, ActionType.PATTERN ->
+                                    ActionType.TAP, ActionType.LONG_PRESS, ActionType.PATTERN, ActionType.DOUBLE_TAP ->
                                         "(${step.x.toInt()}, ${step.y.toInt()}) • ${step.delayBefore}ms delay • ${step.holdDuration}ms hold"
                                     ActionType.SWIPE ->
                                         "(${step.x.toInt()}, ${step.y.toInt()}) → (${step.swipeToX.toInt()}, ${step.swipeToY.toInt()}) • ${step.swipeDuration}ms"
+                                    ActionType.PINCH_IN, ActionType.PINCH_OUT ->
+                                        "(${step.x.toInt()}, ${step.y.toInt()}) ⇄ (${step.swipeToX.toInt()}, ${step.swipeToY.toInt()}) • ${step.swipeDuration}ms"
                                     ActionType.DELAY ->
                                         "Wait ${step.delayBefore}ms"
                                 },

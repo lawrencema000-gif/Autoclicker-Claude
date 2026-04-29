@@ -8,7 +8,10 @@ enum class ActionType {
     @SerializedName("swipe") SWIPE,
     @SerializedName("hold") LONG_PRESS,
     @SerializedName("wait") DELAY,
-    @SerializedName("pattern") PATTERN
+    @SerializedName("pattern") PATTERN,
+    @SerializedName("pinch_in") PINCH_IN,
+    @SerializedName("pinch_out") PINCH_OUT,
+    @SerializedName("double_tap") DOUBLE_TAP
 }
 
 enum class ClickMode {

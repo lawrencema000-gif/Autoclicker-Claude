@@ -16,6 +16,7 @@ import com.autoclicker.claude.overlay.CrosshairOverlay
 import com.autoclicker.claude.overlay.FloatingBubbleManager
 import com.autoclicker.claude.overlay.FloatingToolbarManager
 import com.autoclicker.claude.overlay.GestureRecorderOverlay
+import com.autoclicker.claude.overlay.PauseOnTouchDetector
 import com.autoclicker.claude.overlay.PickOverlayManager
 import com.autoclicker.claude.overlay.ProfilePickerOverlay
 import com.autoclicker.claude.util.AntiDetection
@@ -25,6 +26,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.combine
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
+import kotlin.random.Random
 
 class AutoClickService : AccessibilityService() {
 
@@ -52,6 +54,7 @@ class AutoClickService : AccessibilityService() {
     private var countdownOverlay: CountdownOverlay? = null
     private var profilePicker: ProfilePickerOverlay? = null
     private var crosshairOverlay: CrosshairOverlay? = null
+    private var pauseOnTouchDetector: PauseOnTouchDetector? = null
     private var screenOffReceiver: BroadcastReceiver? = null
     private var intentTriggerReceiver: IntentTriggerReceiver? = null
 
@@ -74,6 +77,16 @@ class AutoClickService : AccessibilityService() {
             startProfile(profile)
         }
         crosshairOverlay = CrosshairOverlay(this)
+        pauseOnTouchDetector = PauseOnTouchDetector(this)
+
+        // Show pause-on-touch sentinel only while running, when the setting is on.
+        scope.launch {
+            combine(CommandBus.pauseOnTouchEnabled, CommandBus.runState) { enabled, state ->
+                enabled && state == RunState.RUNNING
+            }.collect { active ->
+                if (active) pauseOnTouchDetector?.show() else pauseOnTouchDetector?.dismiss()
+            }
+        }
 
         // Show/hide bubble: show when enabled + (running or UI active), dismiss when idle + app closed
         scope.launch {
@@ -222,6 +235,7 @@ class AutoClickService : AccessibilityService() {
         floatingBubble?.dismiss()
         profilePicker?.dismiss()
         crosshairOverlay?.dismiss()
+        pauseOnTouchDetector?.dismiss()
         unregisterIntentTriggerReceiver()
         CommandBus.setServiceConnected(false)
         scope.cancel()
@@ -236,6 +250,7 @@ class AutoClickService : AccessibilityService() {
         floatingBubble?.dismiss()
         profilePicker?.dismiss()
         crosshairOverlay?.dismiss()
+        pauseOnTouchDetector?.dismiss()
         unregisterIntentTriggerReceiver()
         CommandBus.setServiceConnected(false)
         scope.cancel()
@@ -362,6 +377,26 @@ class AutoClickService : AccessibilityService() {
                                     dispatchTap(px, py, hold)
                                     tapCount++
                                 }
+                                ActionType.DOUBLE_TAP -> {
+                                    val (tx, ty) = AntiDetection.randomizePosition(live.x, live.y, anti)
+                                    val hold = AntiDetection.humanizeHold(step.holdDuration, anti)
+                                    dispatchTap(tx, ty, hold)
+                                    delay(60L + Random.nextLong(20))
+                                    dispatchTap(tx, ty, hold)
+                                    lastTapX = tx; lastTapY = ty
+                                    tapCount += 2
+                                }
+                                ActionType.PINCH_IN, ActionType.PINCH_OUT -> {
+                                    // swipeToX/swipeToY define the second finger's anchor;
+                                    // for IN, fingers move toward center; for OUT, away from center
+                                    dispatchPinch(
+                                        live.x, live.y,
+                                        step.swipeToX, step.swipeToY,
+                                        zoomIn = step.action == ActionType.PINCH_OUT,
+                                        durationMs = step.swipeDuration.coerceAtLeast(150L)
+                                    )
+                                    tapCount++
+                                }
                             }
 
                             val currentElapsed = System.currentTimeMillis() - startTimeMs
@@ -476,6 +511,42 @@ class AutoClickService : AccessibilityService() {
         val path = Path().apply { moveTo(safeX, safeY) }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs.coerceAtLeast(1L)))
+            .build()
+        suspendCancellableCoroutine { cont ->
+            val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(g: GestureDescription?) { if (cont.isActive) cont.resume(Unit) {} }
+                override fun onCancelled(g: GestureDescription?) { if (cont.isActive) cont.resume(Unit) {} }
+            }, null)
+            if (!dispatched && cont.isActive) cont.resume(Unit) {}
+        }
+    }
+
+    /**
+     * Dispatch a 2-finger pinch (zoom in or out) by submitting two simultaneous
+     * gesture strokes. Finger A moves between (cx,cy) and (x1,y1); finger B
+     * moves between (cx,cy) and (x2,y2). For pinch-in (zoom out), fingers
+     * collapse toward the midpoint; for pinch-out (zoom in), they spread.
+     */
+    private suspend fun dispatchPinch(
+        x1: Float, y1: Float,
+        x2: Float, y2: Float,
+        zoomIn: Boolean,
+        durationMs: Long
+    ) {
+        val metrics = resources.displayMetrics
+        val maxX = (metrics.widthPixels - 1).toFloat()
+        val maxY = (metrics.heightPixels - 1).toFloat()
+        val cx = ((x1 + x2) / 2f).coerceIn(0f, maxX)
+        val cy = ((y1 + y2) / 2f).coerceIn(0f, maxY)
+        val a1 = if (zoomIn) Pair(cx, cy) else Pair(x1.coerceIn(0f, maxX), y1.coerceIn(0f, maxY))
+        val a2 = if (zoomIn) Pair(x1.coerceIn(0f, maxX), y1.coerceIn(0f, maxY)) else Pair(cx, cy)
+        val b1 = if (zoomIn) Pair(cx, cy) else Pair(x2.coerceIn(0f, maxX), y2.coerceIn(0f, maxY))
+        val b2 = if (zoomIn) Pair(x2.coerceIn(0f, maxX), y2.coerceIn(0f, maxY)) else Pair(cx, cy)
+        val pathA = Path().apply { moveTo(a1.first, a1.second); lineTo(a2.first, a2.second) }
+        val pathB = Path().apply { moveTo(b1.first, b1.second); lineTo(b2.first, b2.second) }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(pathA, 0, durationMs))
+            .addStroke(GestureDescription.StrokeDescription(pathB, 0, durationMs))
             .build()
         suspendCancellableCoroutine { cont ->
             val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {

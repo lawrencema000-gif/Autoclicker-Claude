@@ -67,6 +67,9 @@ object CommandBus {
     private val _uiActive = MutableStateFlow(false)
     val uiActive: StateFlow<Boolean> = _uiActive.asStateFlow()
 
+    private val _pauseOnTouchEnabled = MutableStateFlow(false)
+    val pauseOnTouchEnabled: StateFlow<Boolean> = _pauseOnTouchEnabled.asStateFlow()
+
     fun send(command: TapCommand) { _commands.tryEmit(command) }
     fun emitPickResult(x: Float, y: Float) { _pickResults.tryEmit(PickResult(x, y)) }
     fun emitRecordingResult(steps: List<ClickPoint>) { _recordingResults.tryEmit(steps) }
@@ -79,6 +82,7 @@ object CommandBus {
     fun updateInterval(ms: Long) { _liveIntervalOverride.value = ms }
     fun setDefaultSettings(settings: DefaultSettings) { _defaultSettings.value = settings }
     fun setUiActive(active: Boolean) { _uiActive.value = active }
+    fun setPauseOnTouchEnabled(value: Boolean) { _pauseOnTouchEnabled.value = value }
 
     fun setRunState(state: RunState) {
         _runState.value = state
