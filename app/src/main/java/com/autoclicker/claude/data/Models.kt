@@ -74,8 +74,35 @@ data class ClickPoint(
     val swipeDuration: Long = 300L,
     val repeatCount: Int = 1,
     val label: String = "",
-    val order: Int = 0
+    val order: Int = 0,
+    /** Optional per-step random delay range. When delayMaxMs > 0, the runtime
+     *  picks a uniformly-random delay in [delayMinMs, delayMaxMs] for THIS step
+     *  on every tap, overriding delayBefore. Lets the user say "tap A every
+     *  1.0±0.3s, tap B every 5.0±1.5s" without setting up the global anti-detection. */
+    val delayMinMs: Long = 0L,
+    val delayMaxMs: Long = 0L
 )
+
+/**
+ * Cron-style schedule attached to a profile. Fires the profile via AlarmManager
+ * at the specified time on the selected days. daysOfWeek is a 7-bit mask:
+ * bit 0 = Sunday, bit 1 = Monday, ..., bit 6 = Saturday. 0 = none, 127 = every day.
+ */
+data class Schedule(
+    val enabled: Boolean = false,
+    val hour: Int = 9,
+    val minute: Int = 0,
+    val daysOfWeek: Int = 0,
+    val lastFiredMs: Long = 0L
+) {
+    fun runsOn(dayOfWeek: Int): Boolean = (daysOfWeek shr dayOfWeek) and 1 == 1
+    fun isAnyDay(): Boolean = daysOfWeek != 0
+    companion object {
+        const val EVERY_DAY = 0b1111111
+        const val WEEKDAYS = 0b0111110  // Mon-Fri
+        const val WEEKENDS = 0b1000001  // Sat + Sun
+    }
+}
 
 data class PatternConfig(
     val type: PatternType = PatternType.CIRCLE,
@@ -141,6 +168,7 @@ data class TapProfile(
     val rules: ClickRule = ClickRule(),
     val patternConfig: PatternConfig? = null,
     val antiDetection: AntiDetectionConfig = AntiDetectionConfig(),
+    val schedule: Schedule? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

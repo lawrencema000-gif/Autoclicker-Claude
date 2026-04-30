@@ -325,10 +325,20 @@ class AutoClickService : AccessibilityService() {
                         // Read the (possibly user-dragged) point fresh each iteration
                         val step = runningSteps.getOrNull(stepIdx) ?: break
 
-                        // Per-tap delay: honor the live interval slider when set, else
-                        // fall back to the recorded step delay.
+                        // Per-tap delay precedence:
+                        //  1. Per-step random range  (delayMaxMs > 0)  → pick uniformly in [min,max]
+                        //  2. Live interval slider                      → user override during runtime
+                        //  3. Recorded step delay                       → default
                         val liveOverride = CommandBus.liveIntervalOverride.value
-                        val effectiveStepDelay = if (liveOverride > 0) liveOverride else step.delayBefore
+                        val effectiveStepDelay = when {
+                            step.delayMaxMs > 0 -> {
+                                val lo = max(1L, step.delayMinMs)
+                                val hi = max(lo + 1, step.delayMaxMs + 1)
+                                Random.nextLong(lo, hi)
+                            }
+                            liveOverride > 0 -> liveOverride
+                            else -> step.delayBefore
+                        }
                         val baseDelay = computeDelay(effectiveStepDelay, effectiveProfile.rules)
                         val jitteredDelay = AntiDetection.jitterInterval(baseDelay, anti)
                         if (jitteredDelay > 0) delay(jitteredDelay)

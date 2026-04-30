@@ -98,7 +98,8 @@ fun ProfileListScreen(
                         onEdit = { vm.editProfile(profile) },
                         onDuplicate = { vm.duplicateProfile(profile.id) },
                         onExport = { onExport(profile) },
-                        onDelete = { vm.deleteProfile(profile.id) }
+                        onDelete = { vm.deleteProfile(profile.id) },
+                        onSchedule = { schedule -> vm.setProfileSchedule(profile, schedule) }
                     )
                 }
 
@@ -128,6 +129,14 @@ fun ProfileListScreen(
     }
 }
 
+private fun formatDays(mask: Int): String {
+    if (mask == com.autoclicker.claude.data.Schedule.EVERY_DAY) return "every day"
+    if (mask == com.autoclicker.claude.data.Schedule.WEEKDAYS) return "weekdays"
+    if (mask == com.autoclicker.claude.data.Schedule.WEEKENDS) return "weekends"
+    val labels = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    return labels.filterIndexed { i, _ -> (mask shr i) and 1 == 1 }.joinToString(", ")
+}
+
 @Composable
 private fun ProfileCard(
     profile: TapProfile,
@@ -136,11 +145,21 @@ private fun ProfileCard(
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
     onExport: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onSchedule: (com.autoclicker.claude.data.Schedule?) -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showScheduleDialog by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    if (showScheduleDialog) {
+        ScheduleDialog(
+            profile = profile,
+            onSave = onSchedule,
+            onDismiss = { showScheduleDialog = false }
+        )
+    }
 
     if (showDeleteConfirm) {
         com.autoclicker.claude.ui.components.ConfirmDialog(
@@ -178,6 +197,14 @@ private fun ProfileCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                profile.schedule?.takeIf { it.enabled }?.let { sched ->
+                    Text(
+                        "⏰ ${String.format("%02d:%02d", sched.hour, sched.minute)} on ${formatDays(sched.daysOfWeek)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             // Play
@@ -199,6 +226,11 @@ private fun ProfileCard(
                         text = { Text("Edit") },
                         onClick = { showMenu = false; onEdit() },
                         leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (profile.schedule?.enabled == true) "Edit schedule" else "Schedule") },
+                        onClick = { showMenu = false; showScheduleDialog = true },
+                        leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null) }
                     )
                     DropdownMenuItem(
                         text = { Text("Duplicate") },

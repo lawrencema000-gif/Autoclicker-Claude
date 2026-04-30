@@ -46,8 +46,14 @@ class IntentTriggerReceiver(private val appContext: Context) : BroadcastReceiver
                         !id.isNullOrBlank() -> profiles.firstOrNull { it.id == id }
                         !name.isNullOrBlank() -> profiles.firstOrNull { it.name.equals(name, ignoreCase = true) }
                         else -> null
-                    } ?: profiles.firstOrNull()  // No selector = first saved profile
-                    target?.let { CommandBus.send(TapCommand.StartProfile(it)) }
+                    } ?: profiles.firstOrNull()
+                    if (target != null) {
+                        CommandBus.send(TapCommand.StartProfile(target))
+                        // If this fire was from a recurring schedule, re-arm for the next occurrence.
+                        if (target.schedule?.enabled == true) {
+                            ScheduleManager.reschedule(appContext, target)
+                        }
+                    }
                 }
             }
             ACTION_STOP -> CommandBus.send(TapCommand.Stop)

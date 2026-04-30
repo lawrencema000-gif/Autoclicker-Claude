@@ -311,13 +311,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             } else {
                 repo.addProfile(profile)
             }
+            com.autoclicker.claude.service.ScheduleManager.reschedule(getApplication(), profile)
             _editingProfile.value = null
+        }
+    }
+
+    fun setProfileSchedule(profile: TapProfile, schedule: Schedule?) {
+        viewModelScope.launch {
+            val updated = profile.copy(schedule = schedule)
+            repo.updateProfile(updated)
+            com.autoclicker.claude.service.ScheduleManager.reschedule(getApplication(), updated)
         }
     }
 
     // Profile management
     fun deleteProfile(id: String) {
-        viewModelScope.launch { repo.deleteProfile(id) }
+        viewModelScope.launch {
+            com.autoclicker.claude.service.ScheduleManager.cancelFor(getApplication(), id)
+            repo.deleteProfile(id)
+        }
     }
 
     fun duplicateProfile(id: String) {
