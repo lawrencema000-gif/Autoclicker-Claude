@@ -169,6 +169,12 @@ data class TapProfile(
     val patternConfig: PatternConfig? = null,
     val antiDetection: AntiDetectionConfig = AntiDetectionConfig(),
     val schedule: Schedule? = null,
+    /** Screen size when these coordinates were recorded. When the profile runs
+     *  on a different-sized screen (e.g. exported from one phone, imported to
+     *  another), the runtime auto-scales coords proportionally. 0 = unset
+     *  (skip scaling, treat as already-fitted to current screen). */
+    val sourceScreenWidth: Int = 0,
+    val sourceScreenHeight: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

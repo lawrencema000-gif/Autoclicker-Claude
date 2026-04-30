@@ -26,6 +26,15 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
     var loopCount by remember(profile.id) { mutableStateOf(if (profile.loopCount == 0) "" else profile.loopCount.toString()) }
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var showRepickConfirm by remember { mutableStateOf(false) }
+    var editingStep by remember { mutableStateOf<com.autoclicker.claude.data.ClickPoint?>(null) }
+
+    editingStep?.let { step ->
+        StepEditDialog(
+            step = step,
+            onSave = { vm.updateStepInEditing(it) },
+            onDismiss = { editingStep = null }
+        )
+    }
 
     val hasUnsavedChanges = name != profile.name ||
         interval != profile.intervalMs.toString() ||
@@ -243,6 +252,7 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
         } else {
             itemsIndexed(profile.steps, key = { _, s -> s.id }) { index, step ->
                 Card(
+                    onClick = { editingStep = step },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -285,15 +295,26 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                when (step.action) {
-                                    ActionType.TAP, ActionType.LONG_PRESS, ActionType.PATTERN, ActionType.DOUBLE_TAP ->
-                                        "(${step.x.toInt()}, ${step.y.toInt()}) • ${step.delayBefore}ms delay • ${step.holdDuration}ms hold"
-                                    ActionType.SWIPE ->
-                                        "(${step.x.toInt()}, ${step.y.toInt()}) → (${step.swipeToX.toInt()}, ${step.swipeToY.toInt()}) • ${step.swipeDuration}ms"
-                                    ActionType.PINCH_IN, ActionType.PINCH_OUT ->
-                                        "(${step.x.toInt()}, ${step.y.toInt()}) ⇄ (${step.swipeToX.toInt()}, ${step.swipeToY.toInt()}) • ${step.swipeDuration}ms"
-                                    ActionType.DELAY ->
-                                        "Wait ${step.delayBefore}ms"
+                                buildString {
+                                    when (step.action) {
+                                        ActionType.TAP, ActionType.LONG_PRESS, ActionType.PATTERN, ActionType.DOUBLE_TAP ->
+                                            append("(${step.x.toInt()}, ${step.y.toInt()}) • ")
+                                        ActionType.SWIPE ->
+                                            append("(${step.x.toInt()}, ${step.y.toInt()}) → (${step.swipeToX.toInt()}, ${step.swipeToY.toInt()}) • ")
+                                        ActionType.PINCH_IN, ActionType.PINCH_OUT ->
+                                            append("(${step.x.toInt()}, ${step.y.toInt()}) ⇄ (${step.swipeToX.toInt()}, ${step.swipeToY.toInt()}) • ")
+                                        ActionType.DELAY ->
+                                            append("Wait ")
+                                    }
+                                    if (step.delayMaxMs > 0) {
+                                        append("${step.delayMinMs}-${step.delayMaxMs}ms (random)")
+                                    } else {
+                                        append("${step.delayBefore}ms")
+                                        if (step.action == ActionType.SWIPE || step.action == ActionType.PINCH_IN || step.action == ActionType.PINCH_OUT) {
+                                            append(" • ${step.swipeDuration}ms gesture")
+                                        }
+                                    }
+                                    if (step.repeatCount > 1) append(" • ×${step.repeatCount}")
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant

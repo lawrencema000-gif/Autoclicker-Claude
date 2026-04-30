@@ -271,7 +271,7 @@ class AutoClickService : AccessibilityService() {
 
         // Generate pattern steps if pattern mode
         val metrics = resources.displayMetrics
-        val steps = if (profile.mode == ClickMode.PATTERN_MODE && profile.patternConfig != null) {
+        val rawSteps = if (profile.mode == ClickMode.PATTERN_MODE && profile.patternConfig != null) {
             PatternGenerator.generate(
                 profile.patternConfig, profile.intervalMs,
                 profile.intervalMs, // hold fallback
@@ -280,6 +280,12 @@ class AutoClickService : AccessibilityService() {
         } else {
             profile.steps
         }
+
+        // Resolution-independent scaling: if this profile was recorded on a
+        // different-sized screen, scale all coordinates proportionally to the
+        // current device. Lets users export a macro from one phone (1080×2400)
+        // and run it on another (1440×3200) without manual editing.
+        val steps = scaleStepsToScreen(rawSteps, profile, metrics.widthPixels, metrics.heightPixels)
 
         val effectiveProfile = profile.copy(steps = steps)
 
@@ -603,6 +609,29 @@ class AutoClickService : AccessibilityService() {
             registerReceiver(screenOffReceiver, filter, RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(screenOffReceiver, filter)
+        }
+    }
+
+    /** Scale recorded coordinates to match the currently-active screen. */
+    private fun scaleStepsToScreen(
+        steps: List<ClickPoint>,
+        profile: TapProfile,
+        currentW: Int,
+        currentH: Int
+    ): List<ClickPoint> {
+        val srcW = profile.sourceScreenWidth
+        val srcH = profile.sourceScreenHeight
+        if (srcW <= 0 || srcH <= 0) return steps  // No source size → assume already fitted
+        if (srcW == currentW && srcH == currentH) return steps  // Same screen → no-op
+        val sx = currentW.toFloat() / srcW
+        val sy = currentH.toFloat() / srcH
+        return steps.map { step ->
+            step.copy(
+                x = step.x * sx,
+                y = step.y * sy,
+                swipeToX = if (step.swipeToX > 0) step.swipeToX * sx else 0f,
+                swipeToY = if (step.swipeToY > 0) step.swipeToY * sy else 0f
+            )
         }
     }
 

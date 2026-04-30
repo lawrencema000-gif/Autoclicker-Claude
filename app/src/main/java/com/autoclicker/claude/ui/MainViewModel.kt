@@ -296,6 +296,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _editingProfile.value = current.copy(steps = current.steps.filter { it.id != stepId })
     }
 
+    fun updateStepInEditing(updated: ClickPoint) {
+        val current = _editingProfile.value ?: return
+        _editingProfile.value = current.copy(
+            steps = current.steps.map { if (it.id == updated.id) updated else it }
+        )
+    }
+
     fun rePickEditingPoints() {
         val current = _editingProfile.value ?: return
         _editingProfile.value = current.copy(steps = emptyList())

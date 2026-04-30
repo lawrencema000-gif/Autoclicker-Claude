@@ -60,22 +60,36 @@ class ProfileRepository(private val context: Context) {
     }
 
     suspend fun addProfile(profile: TapProfile) {
+        val stamped = stampSourceScreen(profile)
         context.dataStore.edit { prefs ->
             val current = loadProfiles(prefs)
-            current.add(profile)
+            current.add(stamped)
             prefs[profilesKey] = gson.toJson(current)
         }
     }
 
     suspend fun updateProfile(profile: TapProfile) {
+        val stamped = stampSourceScreen(profile)
         context.dataStore.edit { prefs ->
             val current = loadProfiles(prefs)
             val index = current.indexOfFirst { it.id == profile.id }
             if (index >= 0) {
-                current[index] = profile.copy(updatedAt = System.currentTimeMillis())
+                current[index] = stamped.copy(updatedAt = System.currentTimeMillis())
                 prefs[profilesKey] = gson.toJson(current)
             }
         }
+    }
+
+    /** Stamp the current screen size on a profile if it hasn't been set yet,
+     *  so the runtime knows how to scale coords if this profile is later run
+     *  on a different-sized device. */
+    private fun stampSourceScreen(profile: TapProfile): TapProfile {
+        if (profile.sourceScreenWidth > 0 && profile.sourceScreenHeight > 0) return profile
+        val metrics = context.resources.displayMetrics
+        return profile.copy(
+            sourceScreenWidth = metrics.widthPixels,
+            sourceScreenHeight = metrics.heightPixels
+        )
     }
 
     suspend fun deleteProfile(id: String) {
