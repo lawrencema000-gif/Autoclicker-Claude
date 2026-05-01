@@ -149,20 +149,22 @@ class CrosshairOverlay(private val service: AccessibilityService) {
         }
 
         private fun handleTouch(event: MotionEvent): Boolean {
-            // Crosshairs are draggable ONLY when the session is paused. Otherwise
-            // pass touches through so the running app stays interactive.
-            val paused = CommandBus.runState.value == RunState.PAUSED
-            if (!paused && draggingIndex < 0) return false
-
+            // Drag policy: if the user touches a crosshair point, ALWAYS grab it
+            // and auto-pause if running. This avoids the StateFlow propagation race
+            // where pause-on-touch fires Pause but the runState change hasn't
+            // arrived by the time CrosshairView's ACTION_DOWN is processed.
+            // Touches that miss every point are passed through.
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    if (!paused) return false
                     val hit = points.indexOfFirst { pt ->
                         val dx = event.x - pt.x
                         val dy = event.y - pt.y
                         (dx * dx + dy * dy) <= touchSlop * touchSlop
                     }
                     if (hit >= 0) {
+                        if (CommandBus.runState.value == RunState.RUNNING) {
+                            CommandBus.send(com.autoclicker.claude.data.TapCommand.Pause)
+                        }
                         draggingIndex = hit
                         dragStartX = event.x
                         dragStartY = event.y
@@ -228,10 +230,10 @@ class CrosshairOverlay(private val service: AccessibilityService) {
                 canvas.drawText("${idx + 1}", pt.x, pt.y - r - 4f * density, nPaint)
             }
 
-            // Pause-state hint so the user discovers the drag affordance
+            // Drag-affordance hint when paused
             if (CommandBus.runState.value == RunState.PAUSED && draggingIndex < 0 && points.isNotEmpty()) {
                 canvas.drawText(
-                    "Drag a point to move it",
+                    "Drag a point to move it (auto-paused)",
                     points[0].x,
                     (points[0].y + circleR + 18f * density).coerceAtMost(height.toFloat() - 8f * density),
                     hintPaint

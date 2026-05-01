@@ -52,25 +52,51 @@ class PickOverlayManager(private val service: AccessibilityService) {
                 MotionEvent.ACTION_UP -> {
                     val x = event.rawX
                     val y = event.rawY
+                    val metrics = service.resources.displayMetrics
 
-                    // Check if DONE button was tapped
+                    // 1. DONE button hit?
                     if (multiPick && pickedPoints.isNotEmpty()) {
-                        val metrics = service.resources.displayMetrics
                         val btnRect = getDoneButtonRect(metrics.widthPixels.toFloat(), metrics.heightPixels.toFloat())
                         if (btnRect.contains(x, y)) {
                             dismiss()
                             return@setOnTouchListener true
                         }
+                        // 2. CLEAR-ALL button hit?
+                        val clearRect = getClearAllRect(metrics.widthPixels.toFloat(), metrics.heightPixels.toFloat())
+                        if (clearRect.contains(x, y)) {
+                            pickedPoints.clear()
+                            CommandBus.clearPickResults()
+                            triggerServiceHaptic()
+                            currentTouch = null
+                            view.invalidate()
+                            return@setOnTouchListener true
+                        }
                     }
 
-                    // Clamp coordinates to screen bounds
-                    val metrics = service.resources.displayMetrics
+                    // 3. Tap on an EXISTING point removes it (within ~36dp radius).
+                    val density = metrics.density
+                    val removeRadius = 36f * density
+                    val hitIndex = pickedPoints.indexOfLast { (px, py) ->
+                        val dx = x - px; val dy = y - py
+                        (dx * dx + dy * dy) <= removeRadius * removeRadius
+                    }
+                    if (hitIndex >= 0) {
+                        pickedPoints.removeAt(hitIndex)
+                        // Tell the listener side which index was removed so it can
+                        // drop the corresponding ClickPoint from the in-flight list.
+                        CommandBus.emitPickRemove(hitIndex)
+                        triggerServiceHaptic()
+                        currentTouch = null
+                        view.invalidate()
+                        return@setOnTouchListener true
+                    }
+
+                    // 4. Otherwise add a new point at the tap position.
                     val cx = x.coerceIn(0f, metrics.widthPixels.toFloat())
                     val cy = y.coerceIn(0f, metrics.heightPixels.toFloat())
                     pickedPoints.add(Pair(cx, cy))
                     CommandBus.emitPickResult(cx, cy)
                     currentTouch = null
-                    // Haptic confirmation so user knows the tap registered
                     triggerServiceHaptic()
 
                     if (!multiPick) {
@@ -119,6 +145,18 @@ class PickOverlayManager(private val service: AccessibilityService) {
             screenW - btnW - margin,
             screenH - btnH - margin - 80f,
             screenW - margin,
+            screenH - margin - 80f + btnH
+        )
+    }
+
+    private fun getClearAllRect(screenW: Float, screenH: Float): RectF {
+        val btnW = 180f
+        val btnH = 70f
+        val margin = 40f
+        return RectF(
+            margin,
+            screenH - btnH - margin - 80f,
+            margin + btnW,
             screenH - margin - 80f + btnH
         )
     }
@@ -208,20 +246,20 @@ class PickOverlayManager(private val service: AccessibilityService) {
                 )
             }
 
-            // Draw DONE button for multi-pick
+            // Draw DONE + CLEAR buttons for multi-pick
             if (multiPick && pickedPoints.isNotEmpty()) {
                 val btnRect = getDoneButtonRect(width.toFloat(), height.toFloat())
                 canvas.drawRoundRect(btnRect, 20f, 20f, btnPaint)
-                canvas.drawText(
-                    "DONE",
-                    btnRect.centerX(),
-                    btnRect.centerY() + 12f,
-                    btnTextPaint
-                )
+                canvas.drawText("DONE (${pickedPoints.size})", btnRect.centerX(), btnRect.centerY() + 12f, btnTextPaint)
+
+                val clearRect = getClearAllRect(width.toFloat(), height.toFloat())
+                val clearBgPaint = Paint(btnPaint).apply { color = Color.parseColor("#475569") }
+                canvas.drawRoundRect(clearRect, 20f, 20f, clearBgPaint)
+                canvas.drawText("CLEAR ALL", clearRect.centerX(), clearRect.centerY() + 12f, btnTextPaint)
             }
 
             // Instruction text
-            val instrText = if (multiPick) "Tap to add points, press DONE when finished"
+            val instrText = if (multiPick) "Tap empty area to add. Tap a number to remove it. DONE when ready."
             else "Tap anywhere to select a point"
             canvas.drawText(instrText, width / 2f, 100f, instrPaint)
         }

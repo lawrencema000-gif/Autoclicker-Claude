@@ -27,12 +27,20 @@ sealed class TapCommand {
 
 data class PickResult(val x: Float, val y: Float)
 
+sealed class PickEdit {
+    data class Remove(val index: Int) : PickEdit()
+    data object ClearAll : PickEdit()
+}
+
 object CommandBus {
     private val _commands = MutableSharedFlow<TapCommand>(extraBufferCapacity = 10)
     val commands = _commands.asSharedFlow()
 
     private val _pickResults = MutableSharedFlow<PickResult>(extraBufferCapacity = 10)
     val pickResults = _pickResults.asSharedFlow()
+
+    private val _pickEdits = MutableSharedFlow<PickEdit>(extraBufferCapacity = 10)
+    val pickEdits = _pickEdits.asSharedFlow()
 
     private val _recordingResults = MutableSharedFlow<List<ClickPoint>>(extraBufferCapacity = 5)
     val recordingResults = _recordingResults.asSharedFlow()
@@ -72,6 +80,8 @@ object CommandBus {
 
     fun send(command: TapCommand) { _commands.tryEmit(command) }
     fun emitPickResult(x: Float, y: Float) { _pickResults.tryEmit(PickResult(x, y)) }
+    fun emitPickRemove(index: Int) { _pickEdits.tryEmit(PickEdit.Remove(index)) }
+    fun clearPickResults() { _pickEdits.tryEmit(PickEdit.ClearAll) }
     fun emitRecordingResult(steps: List<ClickPoint>) { _recordingResults.tryEmit(steps) }
     fun updateStats(stats: ExecutionStats) { _stats.value = stats }
     fun setServiceConnected(value: Boolean) { _serviceConnected.value = value }

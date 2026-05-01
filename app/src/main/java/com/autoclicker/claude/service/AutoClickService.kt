@@ -65,26 +65,43 @@ class AutoClickService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        CommandBus.setServiceConnected(true)
-        registerIntentTriggerReceiver()
+        // Wrap initialization so a single subsystem failure (overlay creation,
+        // permission denied, manufacturer-specific WindowManager quirk) cannot
+        // crash the whole accessibility service. Android disables the service
+        // permanently after 3 unhandled crashes; that is the most common cause
+        // of "the app stopped clicking and Settings shows it as off".
+        try {
+            CommandBus.setServiceConnected(true)
+            try { registerIntentTriggerReceiver() } catch (e: Exception) {
+                Log.e("AutoClickService", "IntentTriggerReceiver init failed", e)
+            }
 
-        pickOverlay = PickOverlayManager(this)
-        floatingToolbar = FloatingToolbarManager(this)
-        floatingBubble = FloatingBubbleManager(this)
-        gestureRecorder = GestureRecorderOverlay(this)
-        countdownOverlay = CountdownOverlay(this)
-        profilePicker = ProfilePickerOverlay(this) { profile ->
-            startProfile(profile)
+            pickOverlay = PickOverlayManager(this)
+            floatingToolbar = FloatingToolbarManager(this)
+            floatingBubble = FloatingBubbleManager(this)
+            gestureRecorder = GestureRecorderOverlay(this)
+            countdownOverlay = CountdownOverlay(this)
+            profilePicker = ProfilePickerOverlay(this) { profile -> startProfile(profile) }
+            crosshairOverlay = CrosshairOverlay(this)
+            pauseOnTouchDetector = PauseOnTouchDetector(this)
+        } catch (e: Exception) {
+            Log.e("AutoClickService", "Overlay init failed", e)
         }
-        crosshairOverlay = CrosshairOverlay(this)
-        pauseOnTouchDetector = PauseOnTouchDetector(this)
 
         // Show pause-on-touch sentinel only while running, when the setting is on.
         scope.launch {
-            combine(CommandBus.pauseOnTouchEnabled, CommandBus.runState) { enabled, state ->
-                enabled && state == RunState.RUNNING
-            }.collect { active ->
-                if (active) pauseOnTouchDetector?.show() else pauseOnTouchDetector?.dismiss()
+            try {
+                combine(CommandBus.pauseOnTouchEnabled, CommandBus.runState) { enabled, state ->
+                    enabled && state == RunState.RUNNING
+                }.collect { active ->
+                    try {
+                        if (active) pauseOnTouchDetector?.show() else pauseOnTouchDetector?.dismiss()
+                    } catch (e: Exception) {
+                        Log.e("AutoClickService", "PauseOnTouch show/dismiss failed", e)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AutoClickService", "PauseOnTouch collector failed", e)
             }
         }
 
@@ -103,9 +120,10 @@ class AutoClickService : AccessibilityService() {
 
         scope.launch {
             CommandBus.commands.collect { cmd ->
-                when (cmd) {
-                    is TapCommand.StartProfile -> startProfile(cmd.profile)
-                    is TapCommand.QuickStart -> {
+                try {
+                    when (cmd) {
+                        is TapCommand.StartProfile -> startProfile(cmd.profile)
+                        is TapCommand.QuickStart -> {
                         val profile = TapProfile(
                             name = "Quick Start",
                             mode = cmd.mode,
@@ -157,6 +175,9 @@ class AutoClickService : AccessibilityService() {
                             }
                         }
                     }
+                    }
+                } catch (e: Exception) {
+                    Log.e("AutoClickService", "Command handler failed for $cmd", e)
                 }
             }
         }
@@ -171,6 +192,22 @@ class AutoClickService : AccessibilityService() {
                         delayBefore = settings.intervalMs,
                         holdDuration = settings.holdDurationMs
                     ))
+                }
+            }
+        }
+
+        // Pick-edit collector: handle remove-at-index and clear-all so the
+        // service-side flow stays in sync with the visible overlay.
+        scope.launch {
+            CommandBus.pickEdits.collect { edit ->
+                if (!serviceSidePickActive) return@collect
+                when (edit) {
+                    is PickEdit.Remove -> {
+                        if (edit.index in serviceSidePickPoints.indices) {
+                            serviceSidePickPoints.removeAt(edit.index)
+                        }
+                    }
+                    PickEdit.ClearAll -> serviceSidePickPoints.clear()
                 }
             }
         }

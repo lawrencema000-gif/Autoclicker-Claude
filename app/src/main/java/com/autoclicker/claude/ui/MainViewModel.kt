@@ -110,6 +110,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
+        // Pick-edit collector: handle remove-at-index and clear-all from the
+        // pick overlay so the in-flight quickStart / custom-pattern lists stay
+        // in sync with what the user sees on screen.
+        viewModelScope.launch {
+            CommandBus.pickEdits.collect { edit ->
+                val isCustomPattern = _selectedMode.value == ClickMode.PATTERN_MODE &&
+                    _patternConfig.value.type == PatternType.CUSTOM
+                when (edit) {
+                    is PickEdit.Remove -> {
+                        if (isCustomPattern) {
+                            val current = _customPatternPoints.value
+                            if (edit.index in current.indices) {
+                                val updated = current.toMutableList().apply { removeAt(edit.index) }
+                                _customPatternPoints.value = updated.mapIndexed { i, p -> p.copy(order = i) }
+                            }
+                        } else {
+                            val current = _quickStartPoints.value
+                            if (edit.index in current.indices) {
+                                _quickStartPoints.value = current.toMutableList().apply { removeAt(edit.index) }
+                            }
+                        }
+                    }
+                    PickEdit.ClearAll -> {
+                        if (isCustomPattern) _customPatternPoints.value = emptyList()
+                        else _quickStartPoints.value = emptyList()
+                    }
+                }
+            }
+        }
+
         // Handle gesture recording results
         viewModelScope.launch {
             CommandBus.recordingResults.collect { steps ->
