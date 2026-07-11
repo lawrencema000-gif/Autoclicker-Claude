@@ -42,12 +42,16 @@ object AntiDetection {
 
         if (sessionStartMs == 0L) sessionStartMs = System.currentTimeMillis()
 
-        // Sinusoidal rhythm
+        // Sinusoidal rhythm. Clamp jitterPercent to [0,100] so a corrupt/imported
+        // config with a negative percent can't make maxJitter negative and throw
+        // in Random.nextLong (from >= until).
         intervalCycleCount++
         val cycleFactor = sin(intervalCycleCount * 0.1f) * 0.5f + 0.5f // 0..1
-        val maxJitter = baseMs * config.jitterPercent / 100
+        val pct = config.jitterPercent.coerceIn(0, 100)
+        val maxJitter = (baseMs * pct / 100).coerceAtLeast(0L)
         val jitter = (maxJitter * (cycleFactor * 2f - 1f)).toLong()
-        val noise = Random.nextLong(-maxJitter / 4, maxJitter / 4 + 1)
+        val noiseBound = maxJitter / 4
+        val noise = if (noiseBound > 0) Random.nextLong(-noiseBound, noiseBound + 1) else 0L
 
         // Fatigue: gradual slowdown — taps drift up to ~12% slower over a 30+
         // minute session. No competitor on Play does this; it's the strongest

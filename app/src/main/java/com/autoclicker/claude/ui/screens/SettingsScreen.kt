@@ -339,11 +339,11 @@ fun SettingsScreen(
                 message = "A draggable bubble now appears on your screen.\n\n• Tap: play / pause\n• Long-press: pick new points\n• Drag: move anywhere",
                 confirmLabel = "Got it",
                 cancelLabel = "Turn off",
+                // "Got it" keeps the bubble on; only "Turn off" disables it. A scrim
+                // tap or back press just closes (onDismiss) without disabling.
                 onConfirm = { vm.dismissBubbleTip() },
-                onDismiss = {
-                    showBubbleTip = false
-                    CommandBus.setBubbleEnabled(false)
-                }
+                onCancel = { vm.dismissBubbleTip(); CommandBus.setBubbleEnabled(false) },
+                onDismiss = { showBubbleTip = false }
             )
         }
         Card(
@@ -489,6 +489,7 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     FilledTonalButton(
                         onClick = {
+                            com.autoclicker.claude.ads.AdManager.suppressNextAppOpenAd()
                             com.autoclicker.claude.util.OemAutostart.openAutostartScreen(ctx)
                             com.autoclicker.claude.util.OemAutostart.showHint(ctx)
                         },

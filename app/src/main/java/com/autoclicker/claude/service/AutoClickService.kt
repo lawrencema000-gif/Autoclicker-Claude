@@ -34,7 +34,9 @@ class AutoClickService : AccessibilityService() {
         Log.e("AutoClickService", "Execution error", throwable)
         stopExecution()
     }
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + exceptionHandler)
+    // Recreated on each onServiceConnected so a rebind after onUnbind (which
+    // cancels the scope) gets live collectors instead of a permanently-dead scope.
+    private var scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + exceptionHandler)
     private var executionJob: Job? = null
     private val paused = AtomicBoolean(false)
     private val isStopping = AtomicBoolean(false)
@@ -71,6 +73,10 @@ class AutoClickService : AccessibilityService() {
         // permanently after 3 unhandled crashes; that is the most common cause
         // of "the app stopped clicking and Settings shows it as off".
         try {
+            // Fresh scope in case a prior onUnbind cancelled the old one.
+            if (!scope.isActive) {
+                scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + exceptionHandler)
+            }
             CommandBus.setServiceConnected(true)
             try { registerIntentTriggerReceiver() } catch (e: Exception) {
                 Log.e("AutoClickService", "IntentTriggerReceiver init failed", e)
@@ -343,6 +349,7 @@ class AutoClickService : AccessibilityService() {
         TapForegroundService.start(this, profile.name)
 
         executionJob = scope.launch {
+            val myJob = coroutineContext.job
             try {
                 // 3-second countdown overlay
                 countdownOverlay?.showCountdown(3) {}
@@ -490,7 +497,13 @@ class AutoClickService : AccessibilityService() {
                     }
                 }
             } finally {
-                stopExecution()
+                // Only tear down if THIS job is still the active one. A restart
+                // (RestartLastProfile / new StartProfile while running) already
+                // called stopExecution() and reassigned executionJob to the new
+                // run before this cancelled job's finally is dispatched on the
+                // Main queue; without this guard the superseded job would cancel
+                // the freshly-started run and leave the clicker stopped.
+                if (executionJob === myJob) stopExecution()
             }
         }
     }
@@ -522,6 +535,8 @@ class AutoClickService : AccessibilityService() {
     private fun pauseExecution() {
         paused.set(true)
         CommandBus.setRunState(RunState.PAUSED)
+        // Make the crosshair overlay touchable so points can be dragged while paused.
+        crosshairOverlay?.setInteractive(true)
         floatingToolbar?.refresh()
         floatingBubble?.refresh()
         TapForegroundService.updateState(this, CommandBus.stats.value.profileName, true)
@@ -530,6 +545,8 @@ class AutoClickService : AccessibilityService() {
     private fun resumeExecution() {
         paused.set(false)
         CommandBus.setRunState(RunState.RUNNING)
+        // Back to pass-through so the underlying app and pause-on-touch keep working.
+        crosshairOverlay?.setInteractive(false)
         floatingToolbar?.refresh()
         floatingBubble?.refresh()
         TapForegroundService.updateState(this, CommandBus.stats.value.profileName, false)
@@ -548,11 +565,13 @@ class AutoClickService : AccessibilityService() {
     }
 
     private fun computeDelay(baseDelay: Long, rules: ClickRule): Long {
-        return if (rules.randomizeDelay) {
-            baseDelay + kotlin.random.Random.nextLong(rules.randomDelayMin, rules.randomDelayMax + 1)
-        } else {
-            baseDelay
-        }
+        if (!rules.randomizeDelay) return baseDelay
+        // Guard against Random.nextLong(from, until) throwing when from >= until,
+        // which happens if a corrupt/imported profile has randomDelayMin > randomDelayMax.
+        val lo = rules.randomDelayMin.coerceAtLeast(0L)
+        val hi = rules.randomDelayMax.coerceAtLeast(lo)
+        val extra = if (hi > lo) Random.nextLong(lo, hi + 1) else lo
+        return baseDelay + extra
     }
 
     private suspend fun dispatchTap(x: Float, y: Float, durationMs: Long) {

@@ -73,7 +73,15 @@ class TapForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent == null) return START_NOT_STICKY
+        if (intent == null) {
+            // System auto-restarted us with a null intent (START_STICKY). We must
+            // still call startForeground within ~5s or Android throws
+            // ForegroundServiceDidNotStartInTimeException. The real click session
+            // is gone, so post the notification then stop cleanly.
+            startForeground(NOTIFICATION_ID, buildNotification(isPaused))
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
         when (intent.action) {
             ACTION_STOP -> {
@@ -95,8 +103,10 @@ class TapForegroundService : Service() {
             }
         }
 
-        profileName = intent.getStringExtra(EXTRA_PROFILE_NAME) ?: ""
-        isPaused = intent.getBooleanExtra(EXTRA_IS_PAUSED, false)
+        profileName = intent.getStringExtra(EXTRA_PROFILE_NAME) ?: profileName
+        // Preserve the current paused state when the extra is absent (e.g. a stats
+        // refresh) so a mid-run stats update doesn't wipe the "Paused" label.
+        isPaused = intent.getBooleanExtra(EXTRA_IS_PAUSED, isPaused)
         tapCount = intent.getIntExtra(EXTRA_TAP_COUNT, tapCount)
         elapsedMs = intent.getLongExtra(EXTRA_ELAPSED_MS, elapsedMs)
 
@@ -143,7 +153,7 @@ class TapForegroundService : Service() {
             Notification.Action.Builder(null, "Pause", pauseIntent).build()
         }
 
-        val title = if (profileName.isNotBlank()) "AutoClicker: $profileName" else "AutoClicker Running"
+        val title = if (profileName.isNotBlank()) "Auto Clicker: $profileName" else "Auto Clicker Running"
         val elapsed = elapsedMs / 1000
         val timeStr = if (elapsed >= 3600) String.format("%d:%02d:%02d", elapsed / 3600, (elapsed % 3600) / 60, elapsed % 60)
         else String.format("%d:%02d", elapsed / 60, elapsed % 60)
@@ -165,10 +175,10 @@ class TapForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "AutoClicker Active",
+                "Auto Clicker Active",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shown while AutoClicker is running"
+                description = "Shown while Auto Clicker is running"
             }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }

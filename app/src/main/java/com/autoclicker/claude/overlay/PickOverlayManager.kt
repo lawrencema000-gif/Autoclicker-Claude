@@ -18,6 +18,7 @@ import com.autoclicker.claude.data.CommandBus
 class PickOverlayManager(private val service: AccessibilityService) {
 
     private val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    private val density = service.resources.displayMetrics.density
     private var overlayView: PickOverlayView? = null
     private var multiPick = false
     private val pickedPoints = mutableListOf<Pair<Float, Float>>()
@@ -110,7 +111,10 @@ class PickOverlayManager(private val service: AccessibilityService) {
         }
 
         overlayView = view
-        wm.addView(view, params)
+        try { wm.addView(view, params) } catch (_: Exception) {
+            overlayView = null
+            CommandBus.setPickModeActive(false)
+        }
     }
 
     fun dismiss() {
@@ -138,34 +142,37 @@ class PickOverlayManager(private val service: AccessibilityService) {
     }
 
     private fun getDoneButtonRect(screenW: Float, screenH: Float): RectF {
-        val btnW = 180f
-        val btnH = 70f
-        val margin = 40f
+        val btnW = 96f * density
+        val btnH = 44f * density
+        val margin = 20f * density
+        val bottomGap = 48f * density
         return RectF(
             screenW - btnW - margin,
-            screenH - btnH - margin - 80f,
+            screenH - btnH - margin - bottomGap,
             screenW - margin,
-            screenH - margin - 80f + btnH
+            screenH - margin - bottomGap + btnH
         )
     }
 
     private fun getClearAllRect(screenW: Float, screenH: Float): RectF {
-        val btnW = 180f
-        val btnH = 70f
-        val margin = 40f
+        val btnW = 96f * density
+        val btnH = 44f * density
+        val margin = 20f * density
+        val bottomGap = 48f * density
         return RectF(
             margin,
-            screenH - btnH - margin - 80f,
+            screenH - btnH - margin - bottomGap,
             margin + btnW,
-            screenH - margin - 80f + btnH
+            screenH - margin - bottomGap + btnH
         )
     }
 
     private inner class PickOverlayView(context: Context) : View(context) {
+        private val d = context.resources.displayMetrics.density
         private val bgPaint = Paint().apply { color = Color.argb(80, 0, 0, 0) }
         private val crossPaint = Paint().apply {
             color = Color.parseColor("#38BDF8")
-            strokeWidth = 2.5f
+            strokeWidth = 1.5f * d
             style = Paint.Style.STROKE
             isAntiAlias = true
         }
@@ -179,27 +186,22 @@ class PickOverlayManager(private val service: AccessibilityService) {
             style = Paint.Style.FILL
             isAntiAlias = true
         }
-        private val markerPaint = Paint().apply {
-            color = Color.parseColor("#38BDF8")
-            style = Paint.Style.FILL
-            isAntiAlias = true
-        }
         private val markerStrokePaint = Paint().apply {
             color = Color.parseColor("#38BDF8")
             style = Paint.Style.STROKE
-            strokeWidth = 3f
+            strokeWidth = 2f * d
             isAntiAlias = true
         }
         private val textPaint = Paint().apply {
             color = Color.WHITE
-            textSize = 36f
+            textSize = 15f * d
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
             isFakeBoldText = true
         }
         private val coordPaint = Paint().apply {
             color = Color.parseColor("#38BDF8")
-            textSize = 28f
+            textSize = 12f * d
             isAntiAlias = true
         }
         private val btnPaint = Paint().apply {
@@ -209,14 +211,14 @@ class PickOverlayManager(private val service: AccessibilityService) {
         }
         private val btnTextPaint = Paint().apply {
             color = Color.WHITE
-            textSize = 34f
+            textSize = 15f * d
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
             isFakeBoldText = true
         }
         private val instrPaint = Paint().apply {
             color = Color.parseColor("#CCFFFFFF")
-            textSize = 30f
+            textSize = 13f * d
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
         }
@@ -229,39 +231,39 @@ class PickOverlayManager(private val service: AccessibilityService) {
 
             // Draw picked point markers
             pickedPoints.forEachIndexed { index, (px, py) ->
-                canvas.drawCircle(px, py, 28f, markerFillPaint)
-                canvas.drawCircle(px, py, 28f, markerStrokePaint)
-                canvas.drawText("${index + 1}", px, py + 12f, textPaint)
+                canvas.drawCircle(px, py, 14f * d, markerFillPaint)
+                canvas.drawCircle(px, py, 14f * d, markerStrokePaint)
+                canvas.drawText("${index + 1}", px, py + 5f * d, textPaint)
             }
 
             // Draw current touch crosshair
             currentTouch?.let { (cx, cy) ->
-                canvas.drawCircle(cx, cy, 40f, crossFillPaint)
-                canvas.drawCircle(cx, cy, 40f, crossPaint)
-                canvas.drawLine(cx - 60f, cy, cx + 60f, cy, crossPaint)
-                canvas.drawLine(cx, cy - 60f, cx, cy + 60f, crossPaint)
+                canvas.drawCircle(cx, cy, 20f * d, crossFillPaint)
+                canvas.drawCircle(cx, cy, 20f * d, crossPaint)
+                canvas.drawLine(cx - 30f * d, cy, cx + 30f * d, cy, crossPaint)
+                canvas.drawLine(cx, cy - 30f * d, cx, cy + 30f * d, crossPaint)
                 canvas.drawText(
                     "(${cx.toInt()}, ${cy.toInt()})",
-                    cx + 55f, cy - 20f, coordPaint
+                    cx + 28f * d, cy - 10f * d, coordPaint
                 )
             }
 
             // Draw DONE + CLEAR buttons for multi-pick
             if (multiPick && pickedPoints.isNotEmpty()) {
                 val btnRect = getDoneButtonRect(width.toFloat(), height.toFloat())
-                canvas.drawRoundRect(btnRect, 20f, 20f, btnPaint)
-                canvas.drawText("DONE (${pickedPoints.size})", btnRect.centerX(), btnRect.centerY() + 12f, btnTextPaint)
+                canvas.drawRoundRect(btnRect, 10f * d, 10f * d, btnPaint)
+                canvas.drawText("DONE (${pickedPoints.size})", btnRect.centerX(), btnRect.centerY() + 5f * d, btnTextPaint)
 
                 val clearRect = getClearAllRect(width.toFloat(), height.toFloat())
                 val clearBgPaint = Paint(btnPaint).apply { color = Color.parseColor("#475569") }
-                canvas.drawRoundRect(clearRect, 20f, 20f, clearBgPaint)
-                canvas.drawText("CLEAR ALL", clearRect.centerX(), clearRect.centerY() + 12f, btnTextPaint)
+                canvas.drawRoundRect(clearRect, 10f * d, 10f * d, clearBgPaint)
+                canvas.drawText("CLEAR ALL", clearRect.centerX(), clearRect.centerY() + 5f * d, btnTextPaint)
             }
 
             // Instruction text
             val instrText = if (multiPick) "Tap empty area to add. Tap a number to remove it. DONE when ready."
             else "Tap anywhere to select a point"
-            canvas.drawText(instrText, width / 2f, 100f, instrPaint)
+            canvas.drawText(instrText, width / 2f, 50f * d, instrPaint)
         }
     }
 }

@@ -79,8 +79,13 @@ fun ScheduleDialog(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            val hour12 = when {
+                                hour == 0 -> 12
+                                hour > 12 -> hour - 12
+                                else -> hour
+                            }
                             Text(
-                                String.format("%02d:%02d", hour, minute),
+                                String.format("%d:%02d", hour12, minute),
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold
                             )

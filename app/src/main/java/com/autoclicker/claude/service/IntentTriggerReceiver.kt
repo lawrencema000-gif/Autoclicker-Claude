@@ -3,6 +3,7 @@ package com.autoclicker.claude.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.autoclicker.claude.data.CommandBus
 import com.autoclicker.claude.data.ProfileRepository
 import com.autoclicker.claude.data.TapCommand
@@ -40,19 +41,27 @@ class IntentTriggerReceiver(private val appContext: Context) : BroadcastReceiver
             ACTION_START -> {
                 val name = intent.getStringExtra(EXTRA_PROFILE_NAME)
                 val id = intent.getStringExtra(EXTRA_PROFILE_ID)
+                val hasSelector = !id.isNullOrBlank() || !name.isNullOrBlank()
                 scope.launch {
                     val profiles = repo.profiles.first()
+                    // A selector that matches nothing must NOT silently fall back to
+                    // an arbitrary profile — that would start the wrong automation.
+                    // Only default to the first profile when no selector was given.
                     val target = when {
                         !id.isNullOrBlank() -> profiles.firstOrNull { it.id == id }
                         !name.isNullOrBlank() -> profiles.firstOrNull { it.name.equals(name, ignoreCase = true) }
-                        else -> null
-                    } ?: profiles.firstOrNull()
-                    if (target != null) {
-                        CommandBus.send(TapCommand.StartProfile(target))
-                        // If this fire was from a recurring schedule, re-arm for the next occurrence.
-                        if (target.schedule?.enabled == true) {
-                            ScheduleManager.reschedule(appContext, target)
+                        else -> profiles.firstOrNull()
+                    }
+                    if (target == null) {
+                        if (hasSelector) {
+                            Log.w("IntentTrigger", "START ignored: no profile matches id=$id name=$name")
                         }
+                        return@launch
+                    }
+                    CommandBus.send(TapCommand.StartProfile(target))
+                    // If this fire was from a recurring schedule, re-arm for the next occurrence.
+                    if (target.schedule?.enabled == true) {
+                        ScheduleManager.reschedule(appContext, target)
                     }
                 }
             }

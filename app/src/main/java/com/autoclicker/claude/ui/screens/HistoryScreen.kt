@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.autoclicker.claude.ui.HistoryEntry
+import com.autoclicker.claude.data.HistoryEntry
 import com.autoclicker.claude.ui.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -23,6 +23,18 @@ import java.util.*
 @Composable
 fun HistoryScreen(vm: MainViewModel) {
     val history by vm.history.collectAsState()
+    var showClearConfirm by remember { mutableStateOf(false) }
+
+    if (showClearConfirm) {
+        com.autoclicker.claude.ui.components.ConfirmDialog(
+            title = "Clear history?",
+            message = "This will permanently remove all ${history.size} recorded sessions.",
+            confirmLabel = "Clear",
+            destructive = true,
+            onConfirm = { vm.clearHistory() },
+            onDismiss = { showClearConfirm = false }
+        )
+    }
 
     if (history.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -41,9 +53,15 @@ fun HistoryScreen(vm: MainViewModel) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                Text("History", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("History", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { showClearConfirm = true }) { Text("Clear") }
+                }
             }
-            items(history) { entry ->
+            items(history, key = { "${it.timestamp}-${it.profileName}" }) { entry ->
                 HistoryCard(entry)
             }
         }

@@ -32,13 +32,23 @@ object AdManager : Application.ActivityLifecycleCallbacks {
 
     private const val AD_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes between app open ads
 
+    // App Open ads expire ~4 hours after load; don't show a stale one.
+    private const val AD_EXPIRY_MS = 4 * 60 * 60 * 1000L
+
     private var appOpenAd: AppOpenAd? = null
+    private var appOpenLoadedAt = 0L
     private var isLoadingAppOpen = false
     private var isShowingAd = false
     private var lastAdShownTime = 0L
+    private var hasStartedOnce = false
+    private var suppressNext = false
     var isInitialized = false
         private set
     private var currentActivity: Activity? = null
+
+    /** Call right before launching an external Settings/permission intent so the
+     *  return to the app doesn't trigger an app-open ad mid-onboarding. */
+    fun suppressNextAppOpenAd() { suppressNext = true }
 
     fun initialize(application: Application) {
         if (isInitialized) return
@@ -58,12 +68,13 @@ object AdManager : Application.ActivityLifecycleCallbacks {
             object : AppOpenAd.AppOpenAdLoadCallback() {
                 override fun onAdLoaded(ad: AppOpenAd) {
                     appOpenAd = ad
+                    appOpenLoadedAt = System.currentTimeMillis()
                     isLoadingAppOpen = false
                     Log.d(TAG, "App Open Ad loaded")
                 }
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     isLoadingAppOpen = false
-                    Log.d(TAG, "App Open Ad failed: ${error.message}")
+                    Log.w(TAG, "App Open Ad failed: ${error.message}")
                 }
             }
         )
@@ -72,6 +83,12 @@ object AdManager : Application.ActivityLifecycleCallbacks {
     private fun showAppOpenIfAvailable(activity: Activity) {
         if (isShowingAd) return
         val ad = appOpenAd ?: run { loadAppOpenAd(activity); return }
+        // Discard a stale (expired) ad instead of showing it.
+        if (System.currentTimeMillis() - appOpenLoadedAt >= AD_EXPIRY_MS) {
+            appOpenAd = null
+            loadAppOpenAd(activity)
+            return
+        }
 
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
@@ -95,6 +112,22 @@ object AdManager : Application.ActivityLifecycleCallbacks {
     // ActivityLifecycleCallbacks — show app open ad when app comes to foreground
     override fun onActivityStarted(activity: Activity) {
         currentActivity = activity
+
+        // Never show on the very first foreground (cold start): the user is
+        // arriving at the app, and the ad often isn't loaded yet anyway.
+        if (!hasStartedOnce) {
+            hasStartedOnce = true
+            return
+        }
+
+        // Skip the ad when returning from a Settings/permission screen we launched
+        // (onboarding: accessibility, battery, OEM autostart) — showing an ad there
+        // is jarring and interrupts setup.
+        if (suppressNext) {
+            suppressNext = false
+            return
+        }
+
         val now = System.currentTimeMillis()
         if (now - lastAdShownTime >= AD_COOLDOWN_MS) {
             showAppOpenIfAvailable(activity)

@@ -9,13 +9,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-data class HistoryEntry(
-    val profileName: String,
-    val totalTaps: Int,
-    val durationMs: Long,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
 @OptIn(FlowPreview::class)
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -29,6 +22,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun dismissHomeTip() { viewModelScope.launch { repo.setHomeTipSeen() } }
     fun dismissBubbleTip() { viewModelScope.launch { repo.setBubbleTipSeen() } }
+    fun clearHistory() {
+        _history.value = emptyList()
+        viewModelScope.launch { repo.clearHistory() }
+    }
 
     val runState = CommandBus.runState
     val stats = CommandBus.stats
@@ -43,6 +40,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _editingProfile = MutableStateFlow<TapProfile?>(null)
     val editingProfile: StateFlow<TapProfile?> = _editingProfile.asStateFlow()
+
+    // True while a re-pick was initiated from the profile editor, so pick results
+    // route into the edited profile's steps instead of the quick-start flow.
+    private var editPickActive = false
 
     private val _patternConfig = MutableStateFlow(PatternConfig())
     val patternConfig: StateFlow<PatternConfig> = _patternConfig.asStateFlow()
@@ -65,7 +66,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             repo.getSessionPatternConfig().first().let { _patternConfig.value = it }
             repo.getSessionCustomPoints().first().let { _customPatternPoints.value = it }
             repo.getLastProfile().first()?.let { CommandBus.setLastProfile(it) }
+            // Restore Quick Controls toggles so they survive app restart.
+            CommandBus.setBubbleEnabled(repo.bubbleEnabled.first())
+            CommandBus.setVolumeTriggerEnabled(repo.volumeTriggerEnabled.first())
+            CommandBus.setPauseOnTouchEnabled(repo.pauseOnTouchEnabled.first())
         }
+
+        // Persist Quick Controls toggles whenever they change.
+        viewModelScope.launch { CommandBus.bubbleEnabled.collect { repo.setBubbleEnabled(it) } }
+        viewModelScope.launch { CommandBus.volumeTriggerEnabled.collect { repo.setVolumeTriggerEnabled(it) } }
+        viewModelScope.launch { CommandBus.pauseOnTouchEnabled.collect { repo.setPauseOnTouchEnabled(it) } }
 
         // Auto-save session state with debounce
         viewModelScope.launch {
@@ -92,20 +102,35 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
-        // Collect pick results for quick start or custom pattern
+        // Collect pick results for quick start, custom pattern, or editor re-pick
         viewModelScope.launch {
             CommandBus.pickResults.collect { result ->
-                if (_selectedMode.value == ClickMode.PATTERN_MODE &&
-                    _patternConfig.value.type == PatternType.CUSTOM) {
-                    addCustomPatternPoint(ClickPoint(x = result.x, y = result.y))
-                } else {
-                    val point = ClickPoint(
-                        x = result.x,
-                        y = result.y,
-                        delayBefore = defaultSettings.value.intervalMs,
-                        holdDuration = defaultSettings.value.holdDurationMs
-                    )
-                    _quickStartPoints.value = _quickStartPoints.value + point
+                when {
+                    editPickActive && _editingProfile.value != null -> {
+                        // Re-pick initiated from the editor: append to the edited profile.
+                        val editing = _editingProfile.value ?: return@collect
+                        val point = ClickPoint(
+                            x = result.x,
+                            y = result.y,
+                            delayBefore = defaultSettings.value.intervalMs,
+                            holdDuration = defaultSettings.value.holdDurationMs,
+                            order = editing.steps.size
+                        )
+                        _editingProfile.value = editing.copy(steps = editing.steps + point)
+                    }
+                    _selectedMode.value == ClickMode.PATTERN_MODE &&
+                        _patternConfig.value.type == PatternType.CUSTOM -> {
+                        addCustomPatternPoint(ClickPoint(x = result.x, y = result.y))
+                    }
+                    else -> {
+                        val point = ClickPoint(
+                            x = result.x,
+                            y = result.y,
+                            delayBefore = defaultSettings.value.intervalMs,
+                            holdDuration = defaultSettings.value.holdDurationMs
+                        )
+                        _quickStartPoints.value = _quickStartPoints.value + point
+                    }
                 }
             }
         }
@@ -115,26 +140,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // in sync with what the user sees on screen.
         viewModelScope.launch {
             CommandBus.pickEdits.collect { edit ->
+                val isEditPick = editPickActive && _editingProfile.value != null
                 val isCustomPattern = _selectedMode.value == ClickMode.PATTERN_MODE &&
                     _patternConfig.value.type == PatternType.CUSTOM
                 when (edit) {
-                    is PickEdit.Remove -> {
-                        if (isCustomPattern) {
+                    is PickEdit.Remove -> when {
+                        isEditPick -> {
+                            val editing = _editingProfile.value ?: return@collect
+                            if (edit.index in editing.steps.indices) {
+                                val updated = editing.steps.toMutableList().apply { removeAt(edit.index) }
+                                _editingProfile.value = editing.copy(steps = updated.mapIndexed { i, p -> p.copy(order = i) })
+                            }
+                        }
+                        isCustomPattern -> {
                             val current = _customPatternPoints.value
                             if (edit.index in current.indices) {
                                 val updated = current.toMutableList().apply { removeAt(edit.index) }
                                 _customPatternPoints.value = updated.mapIndexed { i, p -> p.copy(order = i) }
                             }
-                        } else {
+                        }
+                        else -> {
                             val current = _quickStartPoints.value
                             if (edit.index in current.indices) {
                                 _quickStartPoints.value = current.toMutableList().apply { removeAt(edit.index) }
                             }
                         }
                     }
-                    PickEdit.ClearAll -> {
-                        if (isCustomPattern) _customPatternPoints.value = emptyList()
-                        else _quickStartPoints.value = emptyList()
+                    PickEdit.ClearAll -> when {
+                        isEditPick -> _editingProfile.value = _editingProfile.value?.copy(steps = emptyList())
+                        isCustomPattern -> _customPatternPoints.value = emptyList()
+                        else -> _quickStartPoints.value = emptyList()
                     }
                 }
             }
@@ -157,14 +192,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
-        // Log to history when session stops
+        // Restore persisted history
+        viewModelScope.launch {
+            _history.value = repo.history.first()
+        }
+
+        // Log to history when a session ends (covers RUNNING→IDLE and PAUSED→IDLE)
         viewModelScope.launch {
             var prevState = RunState.IDLE
             runState.collect { state ->
-                if (prevState == RunState.RUNNING && state == RunState.IDLE) {
+                if (prevState != RunState.IDLE && state == RunState.IDLE) {
                     val s = stats.value
                     if (s.totalTaps > 0) {
-                        _history.value = listOf(HistoryEntry(s.profileName.ifBlank { "Quick Session" }, s.totalTaps, s.elapsedMs)) + _history.value.take(49)
+                        val updated = (listOf(
+                            HistoryEntry(s.profileName.ifBlank { "Quick Session" }, s.totalTaps, s.elapsedMs)
+                        ) + _history.value).take(50)
+                        _history.value = updated
+                        repo.saveHistory(updated)
                     }
                 }
                 prevState = state
@@ -174,6 +218,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // When pick mode ends, start quick session if points exist
         viewModelScope.launch {
             pickModeActive.collect { active ->
+                if (!active && editPickActive) {
+                    // Editor re-pick just finished; do NOT auto-start or auto-save
+                    // a quick session — the points already went into editingProfile.
+                    editPickActive = false
+                    return@collect
+                }
                 if (!active && _quickStartPoints.value.isNotEmpty()) {
                     val points = _quickStartPoints.value
                     val settings = defaultSettings.value
@@ -336,8 +386,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun rePickEditingPoints() {
         val current = _editingProfile.value ?: return
         _editingProfile.value = current.copy(steps = emptyList())
-        val multi = current.mode == ClickMode.MULTI_POINT
-        CommandBus.send(TapCommand.EnterPickMode(multi))
+        editPickActive = true
+        // Multi-pick so the user can place several points and press DONE; single
+        // mode still works (one point → they press DONE).
+        CommandBus.send(TapCommand.EnterPickMode(true))
     }
 
     fun saveEditingProfile() {

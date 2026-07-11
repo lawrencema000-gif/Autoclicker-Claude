@@ -4,8 +4,10 @@ import android.content.Context
 import android.os.PowerManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.BatteryChargingFull
@@ -53,66 +55,74 @@ fun OnboardingScreen(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(40.dp))
-
-        // App icon
-        Box(
+        // Scrollable content area so onboarding never clips on small screens or
+        // at large system font scales; the button stays pinned below.
+        Column(
             modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                Icons.Default.TouchApp,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp)
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // App icon
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.TouchApp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                "Welcome to Auto Clicker",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "Two quick steps to set up",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Step 1: Accessibility (required)
+            StepCard(
+                stepNumber = 1,
+                title = "Let Auto Clicker tap your screen",
+                description = "Android needs your permission to tap, swipe, and record gestures for you. We never read screen content.",
+                icon = Icons.Default.Accessibility,
+                completed = serviceConnected,
+                actionLabel = if (serviceConnected) "Allowed" else "Allow",
+                onAction = { if (!serviceConnected) onOpenAccessibility() }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Step 2: Battery (optional but recommended)
+            StepCard(
+                stepNumber = 2,
+                title = "Keep Auto Clicker running (optional)",
+                description = "Disable battery optimization so Android doesn't stop clicking when the screen dims.",
+                icon = Icons.Default.BatteryChargingFull,
+                completed = batteryOptimized,
+                actionLabel = if (batteryOptimized) "Done" else "Keep running",
+                onAction = { if (!batteryOptimized) onRequestBattery() }
             )
         }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            "Welcome to Auto Clicker",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-        Text(
-            "Two quick steps to set up",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Step 1: Accessibility
-        StepCard(
-            stepNumber = 1,
-            title = "Let Auto Clicker tap your screen",
-            description = "Android needs your permission to tap, swipe, and record gestures for you. We never read screen content.",
-            icon = Icons.Default.Accessibility,
-            completed = serviceConnected,
-            actionLabel = if (serviceConnected) "Allowed" else "Allow",
-            onAction = { if (!serviceConnected) onOpenAccessibility() }
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Step 2: Battery
-        StepCard(
-            stepNumber = 2,
-            title = "Keep Auto Clicker running",
-            description = "Disable battery optimization so Android doesn't stop clicking when the screen dims.",
-            icon = Icons.Default.BatteryChargingFull,
-            completed = batteryOptimized,
-            actionLabel = if (batteryOptimized) "Done" else "Keep running",
-            onAction = { if (!batteryOptimized) onRequestBattery() }
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
 
         // Helpful hint when not ready
         if (!serviceConnected) {
@@ -121,8 +131,10 @@ fun OnboardingScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp)
             )
+        } else {
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
         // Get Started

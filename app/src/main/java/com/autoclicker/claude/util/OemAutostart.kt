@@ -50,8 +50,10 @@ object OemAutostart {
         }
     }
 
-    /** Whether this device's OEM is known to aggressively kill background services. */
-    fun isAggressiveOem(): Boolean = detectVendor() !in setOf(Vendor.OTHER, Vendor.SAMSUNG)
+    /** Whether this device's OEM is known to aggressively kill background services.
+     *  Samsung IS included (its "put unused apps to sleep" / adaptive battery is a
+     *  frequent killer), matching this file's header and the vendor instructions. */
+    fun isAggressiveOem(): Boolean = detectVendor() != Vendor.OTHER
 
     /**
      * Attempts to open the OEM-specific autostart screen. Returns true if any

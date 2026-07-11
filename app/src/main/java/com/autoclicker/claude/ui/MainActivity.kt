@@ -9,9 +9,11 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
@@ -23,7 +25,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.autoclicker.claude.R
 import com.autoclicker.claude.ads.AdManager
 import com.autoclicker.claude.data.CommandBus
@@ -33,7 +34,9 @@ import com.autoclicker.claude.ui.theme.AutoClickerTheme
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var vm: MainViewModel
+    // Eagerly-bound so ActivityResult callbacks (import) can't touch it before
+    // setContent runs. The delegate creates it lazily but deterministically.
+    private val vm: MainViewModel by viewModels()
     private var pendingExportProfile: TapProfile? = null
 
     private val importLauncher = registerForActivityResult(
@@ -60,7 +63,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             AutoClickerTheme {
-                vm = viewModel()
                 MainContent(vm)
             }
         }
@@ -87,6 +89,11 @@ class MainActivity : ComponentActivity() {
         // settings. Required by Google Play policy for AccessibilityService apps.
         var showDisclosure by remember { mutableStateOf(false) }
         if (showDisclosure) {
+            // Hardware Back = decline (same as the "No thanks" button).
+            BackHandler {
+                showDisclosure = false
+                Toast.makeText(this, getString(R.string.disclosure_declined_toast), Toast.LENGTH_LONG).show()
+            }
             AccessibilityDisclosureScreen(
                 onAgree = {
                     showDisclosure = false
@@ -177,10 +184,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openAccessibilitySettings() {
+        AdManager.suppressNextAppOpenAd()
         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
     }
 
     private fun requestBatteryOptimization() {
+        AdManager.suppressNextAppOpenAd()
         try {
             val pm = getSystemService(PowerManager::class.java)
             if (!pm.isIgnoringBatteryOptimizations(packageName)) {

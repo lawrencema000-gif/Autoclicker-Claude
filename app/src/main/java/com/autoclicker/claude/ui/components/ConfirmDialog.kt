@@ -6,6 +6,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+/**
+ * @param onConfirm  Action for the confirm button. The dialog is then closed via onDismiss.
+ * @param onDismiss  Closes the dialog. Also invoked on scrim tap / back press — these
+ *                   must NOT carry a side effect (like disabling a feature); put any
+ *                   cancel-only side effect in onCancel instead.
+ * @param onCancel   Optional extra action for the dismiss (cancel) button only. Does not
+ *                   run on scrim/back, so an accidental outside-tap can't trigger it.
+ */
 @Composable
 fun ConfirmDialog(
     title: String,
@@ -14,7 +22,8 @@ fun ConfirmDialog(
     cancelLabel: String = "Cancel",
     destructive: Boolean = false,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onCancel: (() -> Unit)? = null
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -31,7 +40,7 @@ fun ConfirmDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(cancelLabel) }
+            TextButton(onClick = { onCancel?.invoke(); onDismiss() }) { Text(cancelLabel) }
         }
     )
 }

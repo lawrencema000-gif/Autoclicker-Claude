@@ -24,7 +24,7 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
     private var dragStartY = 0f
     private var dragStartParamX = 0
     private var dragStartParamY = 0
-    private val dragThreshold = 10f
+    private val dragThreshold = 10f * service.resources.displayMetrics.density
 
     fun show() {
         if (bubbleView != null) return
@@ -98,7 +98,14 @@ class FloatingBubbleManager(private val service: AccessibilityService) {
 
         bubbleView = view
         layoutParams = params
-        wm.addView(view, params)
+        try {
+            wm.addView(view, params)
+        } catch (_: Exception) {
+            // Overlay token revoked or window already exists — reset so a later
+            // show() can retry instead of being wedged by the non-null guard.
+            bubbleView = null
+            layoutParams = null
+        }
     }
 
     fun dismiss() {

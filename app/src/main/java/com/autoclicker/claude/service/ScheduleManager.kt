@@ -43,21 +43,14 @@ object ScheduleManager {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         try {
-            // Use setExactAndAllowWhileIdle so doze mode doesn't shift the fire time.
-            // Falls back gracefully on Android 12+ where SCHEDULE_EXACT_ALARM is gated.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (am.canScheduleExactAlarms()) {
-                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextFireMs, pi)
-                } else {
-                    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextFireMs, pi)
-                }
-            } else {
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextFireMs, pi)
-            }
-            Log.d(TAG, "Scheduled ${profile.name} at $nextFireMs (${schedule.hour}:${schedule.minute})")
-        } catch (e: SecurityException) {
-            // Exact-alarm permission revoked. Use inexact as fallback.
+            // Inexact, doze-friendly alarm. We deliberately avoid exact alarms so
+            // the app doesn't need the Play-restricted USE_EXACT_ALARM /
+            // SCHEDULE_EXACT_ALARM permissions (an auto-clicker doesn't qualify).
+            // A few minutes of drift is acceptable for "run my macro at 9am".
             am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextFireMs, pi)
+            Log.d(TAG, "Scheduled ${profile.name} ~$nextFireMs (${schedule.hour}:${schedule.minute})")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to schedule ${profile.name}", e)
         }
     }
 

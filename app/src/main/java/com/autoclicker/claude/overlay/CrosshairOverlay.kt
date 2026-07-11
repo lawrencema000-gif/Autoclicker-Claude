@@ -17,6 +17,7 @@ class CrosshairOverlay(private val service: AccessibilityService) {
 
     private val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var overlayView: CrosshairView? = null
+    private var layoutParams: WindowManager.LayoutParams? = null
     private var points: MutableList<ClickPoint> = mutableListOf()
     private var activeIndex = -1
 
@@ -26,14 +27,18 @@ class CrosshairOverlay(private val service: AccessibilityService) {
         points = targetPoints.toMutableList()
 
         val view = CrosshairView(service)
-        // Touchable so the user can drag points while paused; non-blocking otherwise
-        // because the per-tap touch handler returns false (lets touches pass through
-        // when no crosshair is being dragged).
+        // IMPORTANT: a full-screen touchable overlay CONSUMES every touch even when
+        // its onTouch returns false — returning false does NOT pass the event to the
+        // window below. So while the session is running we keep the overlay
+        // NOT_TOUCHABLE (pure pass-through: the target app and the pause-on-touch
+        // detector both keep working). Only when paused do we make it touchable so
+        // the user can drag points. setInteractive() flips this at runtime.
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
@@ -42,7 +47,23 @@ class CrosshairOverlay(private val service: AccessibilityService) {
         }
 
         overlayView = view
+        layoutParams = params
         try { wm.addView(view, params) } catch (_: Exception) { overlayView = null }
+    }
+
+    /**
+     * Toggle whether the overlay intercepts touches. Called by the service on
+     * pause (interactive=true, so points can be dragged) and resume/run
+     * (interactive=false, so touches pass through to the underlying app).
+     */
+    fun setInteractive(interactive: Boolean) {
+        val p = layoutParams ?: return
+        val v = overlayView ?: return
+        val flag = WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        val newFlags = if (interactive) p.flags and flag.inv() else p.flags or flag
+        if (newFlags == p.flags) return
+        p.flags = newFlags
+        try { wm.updateViewLayout(v, p) } catch (_: Exception) {}
     }
 
     fun updateActiveIndex(index: Int) {
@@ -59,6 +80,7 @@ class CrosshairOverlay(private val service: AccessibilityService) {
     fun dismiss() {
         overlayView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         overlayView = null
+        layoutParams = null
         points.clear()
         activeIndex = -1
     }

@@ -20,6 +20,10 @@ private val DarkColors = darkColorScheme(
     onSecondary = Color(0xFF0B0F19),
     secondaryContainer = Color(0xFF0E3D2E),
     onSecondaryContainer = Color(0xFF34D399),
+    tertiary = Color(0xFFA78BFA),
+    onTertiary = Color(0xFF0B0F19),
+    tertiaryContainer = Color(0xFF2E2352),
+    onTertiaryContainer = Color(0xFFC4B5FD),
     background = Color(0xFF0B0F19),
     onBackground = Color(0xFFE8ECF4),
     surface = Color(0xFF131825),
@@ -42,6 +46,10 @@ private val LightColors = lightColorScheme(
     onSecondary = Color(0xFFFFFFFF),
     secondaryContainer = Color(0xFFCCFBE5),
     onSecondaryContainer = Color(0xFF059669),
+    tertiary = Color(0xFF7C3AED),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFEDE4FF),
+    onTertiaryContainer = Color(0xFF7C3AED),
     background = Color(0xFFF8FAFC),
     onBackground = Color(0xFF0F172A),
     surface = Color(0xFFFFFFFF),
@@ -58,7 +66,10 @@ private val LightColors = lightColorScheme(
 @Composable
 fun AutoClickerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    // Off by default: the app has a deliberate brand palette (cyan primary,
+    // green success, purple tertiary for schedule/OEM UI). Wallpaper-derived
+    // dynamic color would override all of it and wash out the semantic meaning.
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

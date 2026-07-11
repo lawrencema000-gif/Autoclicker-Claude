@@ -70,7 +70,12 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                     val dx = event.rawX - dragStartX; val dy = event.rawY - dragStartY
                     if (!isDragging && (dx * dx + dy * dy) > dragThreshold * dragThreshold) isDragging = true
                     if (isDragging) {
-                        p.x = (dragStartParamX + dx).toInt(); p.y = (dragStartParamY + dy).toInt()
+                        // Clamp so the toolbar can never be dragged fully off-screen
+                        // and become unrecoverable.
+                        val screenW = service.resources.displayMetrics.widthPixels
+                        val screenH = service.resources.displayMetrics.heightPixels
+                        p.x = (dragStartParamX + dx).toInt().coerceIn(0, (screenW - p.width).coerceAtLeast(0))
+                        p.y = (dragStartParamY + dy).toInt().coerceIn(0, (screenH - p.height).coerceAtLeast(0))
                         try { wm.updateViewLayout(v, p) } catch (_: Exception) {}
                     }
                 }
@@ -105,6 +110,11 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
             p.width = (52 * density).toInt()
             p.height = (200 * density).toInt()
         }
+        // Re-clamp so the newly-grown panel doesn't render off the right/bottom edge.
+        val screenW = service.resources.displayMetrics.widthPixels
+        val screenH = service.resources.displayMetrics.heightPixels
+        p.x = p.x.coerceIn(0, (screenW - p.width).coerceAtLeast(0))
+        p.y = p.y.coerceIn(0, (screenH - p.height).coerceAtLeast(0))
         try { wm.updateViewLayout(toolbarView, p) } catch (_: Exception) {}
         toolbarView?.invalidate()
     }
@@ -132,20 +142,14 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
 
             canvas.drawRoundRect(0f, 0f, w, h, 16f * density, 16f * density, bgPaint)
 
-            // Top bar: drag handle (left/center) + close button (right)
+            // Top bar: centered drag handle only. (The corner close 'X' was
+            // removed — its 14dp target sat next to the drag handle and caused
+            // accidental Stop+Dismiss; the dedicated 'Close' button below is used
+            // instead.)
             val dotY = 8f * density; val dotR = 1.5f * density
-            canvas.drawCircle(w / 2f - 8f * density, dotY, dotR, dragHintPaint)
-            canvas.drawCircle(w / 2f - 2f * density, dotY, dotR, dragHintPaint)
-            canvas.drawCircle(w / 2f + 4f * density, dotY, dotR, dragHintPaint)
-
-            val closeSize = 14f * density
-            val closeRect = RectF(w - closeSize - 4f * density, 2f * density, w - 4f * density, 2f * density + closeSize)
-            buttons.add(ButtonDef(closeRect, "close_x", 0))
-            val closePaint = Paint(dragHintPaint).apply { color = Color.parseColor("#94A3B8"); strokeWidth = 1.5f * density }
-            canvas.drawLine(closeRect.left + 3f * density, closeRect.top + 3f * density,
-                closeRect.right - 3f * density, closeRect.bottom - 3f * density, closePaint)
-            canvas.drawLine(closeRect.right - 3f * density, closeRect.top + 3f * density,
-                closeRect.left + 3f * density, closeRect.bottom - 3f * density, closePaint)
+            canvas.drawCircle(w / 2f - 6f * density, dotY, dotR, dragHintPaint)
+            canvas.drawCircle(w / 2f, dotY, dotR, dragHintPaint)
+            canvas.drawCircle(w / 2f + 6f * density, dotY, dotR, dragHintPaint)
 
             var y = 18f * density
             val stats = CommandBus.stats.value
@@ -327,7 +331,7 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                                 CommandBus.send(TapCommand.Stop)
                             }
                         }
-                        btn.label == "close" || btn.label == "close_x" -> {
+                        btn.label == "close" -> {
                             CommandBus.send(TapCommand.Stop)
                             CommandBus.send(TapCommand.DismissToolbar)
                         }

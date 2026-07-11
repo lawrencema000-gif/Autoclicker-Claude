@@ -17,6 +17,8 @@ object Haptics {
                 @Suppress("DEPRECATION")
                 context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             }
+            // Tablets and some devices have no vibrator; skip silently.
+            if (!vibrator.hasVibrator()) return
             val effect = when (type) {
                 HapticType.TAP -> VibrationEffect.createOneShot(25, VibrationEffect.DEFAULT_AMPLITUDE)
                 HapticType.SUCCESS -> VibrationEffect.createWaveform(longArrayOf(0, 20, 40, 30), -1)

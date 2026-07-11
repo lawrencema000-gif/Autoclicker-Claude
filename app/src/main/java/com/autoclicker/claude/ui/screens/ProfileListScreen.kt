@@ -1,8 +1,10 @@
 package com.autoclicker.claude.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -78,10 +80,14 @@ fun ProfileListScreen(
                     )
                 }
 
-                // Category filter chips
+                // Category filter chips — horizontally scrollable so many
+                // categories don't clip off the right edge.
                 if (categories.size > 1) {
                     item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.horizontalScroll(rememberScrollState())
+                        ) {
                             FilterChip(selected = selectedCategory == null, onClick = { selectedCategory = null }, label = { Text("All") })
                             categories.forEach { cat ->
                                 FilterChip(selected = selectedCategory == cat, onClick = { selectedCategory = if (selectedCategory == cat) null else cat }, label = { Text(cat) })

@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,9 +37,22 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
         )
     }
 
+    // Snapshot the steps as they were when this profile opened so step edits,
+    // deletions, and re-picks count as unsaved changes (the text-field check
+    // alone misses them because those mutate profile.steps, not the fields).
+    val originalSteps = remember(profile.id) { profile.steps }
+
     val hasUnsavedChanges = name != profile.name ||
         interval != profile.intervalMs.toString() ||
-        loopCount != (if (profile.loopCount == 0) "" else profile.loopCount.toString())
+        loopCount != (if (profile.loopCount == 0) "" else profile.loopCount.toString()) ||
+        profile.steps != originalSteps
+
+    fun attemptLeave() {
+        if (hasUnsavedChanges) showDiscardConfirm = true else vm.cancelEditing()
+    }
+
+    // Hardware Back runs the same discard guard as the on-screen Back arrow.
+    androidx.activity.compose.BackHandler(enabled = editingStep == null) { attemptLeave() }
 
     if (showDiscardConfirm) {
         com.autoclicker.claude.ui.components.ConfirmDialog(
@@ -75,10 +89,8 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = {
-                    if (hasUnsavedChanges) showDiscardConfirm = true else vm.cancelEditing()
-                }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                IconButton(onClick = { attemptLeave() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
                 Text(
                     "Edit Script",

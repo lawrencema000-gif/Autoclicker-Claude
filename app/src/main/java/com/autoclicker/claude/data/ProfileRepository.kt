@@ -27,16 +27,32 @@ class ProfileRepository(private val context: Context) {
     private val lastProfileJsonKey = stringPreferencesKey("last_profile_json")
     private val homeTipSeenKey = booleanPreferencesKey("home_tip_seen")
     private val bubbleTipSeenKey = booleanPreferencesKey("bubble_tip_seen")
+    private val historyKey = stringPreferencesKey("session_history_json")
+    private val bubbleEnabledKey = booleanPreferencesKey("bubble_enabled")
+    private val volumeTriggerKey = booleanPreferencesKey("volume_trigger_enabled")
+    private val pauseOnTouchKey = booleanPreferencesKey("pause_on_touch_enabled")
 
     val profiles: Flow<List<TapProfile>> = context.dataStore.data.map { prefs ->
         val json = prefs[profilesKey] ?: "[]"
-        val type = object : TypeToken<List<TapProfile>>() {}.type
-        gson.fromJson(json, type)
+        try {
+            val type = object : TypeToken<List<TapProfile>>() {}.type
+            val parsed: List<TapProfile>? = gson.fromJson(json, type)
+            parsed?.map { sanitize(it) } ?: emptyList()
+        } catch (_: Exception) {
+            // A single corrupt value must not permanently kill the flow (which
+            // would make the entire Scripts tab and every reader go blank).
+            emptyList()
+        }
     }
 
     val defaultSettings: Flow<DefaultSettings> = context.dataStore.data.map { prefs ->
         val json = prefs[defaultSettingsKey]
-        if (json != null) gson.fromJson(json, DefaultSettings::class.java) else DefaultSettings()
+        try {
+            if (json != null) gson.fromJson(json, DefaultSettings::class.java) ?: DefaultSettings()
+            else DefaultSettings()
+        } catch (_: Exception) {
+            DefaultSettings()
+        }
     }
 
     val lastProfileId: Flow<String?> = context.dataStore.data.map { prefs ->
@@ -130,12 +146,13 @@ class ProfileRepository(private val context: Context) {
             throw IllegalArgumentException("Not a valid script file (must be JSON)")
         }
         val parsed = try {
-            gson.fromJson(trimmed, TapProfile::class.java)
-                ?: throw IllegalArgumentException("Script is corrupted or from an unsupported version")
+            (gson.fromJson(trimmed, TapProfile::class.java)
+                ?: throw IllegalArgumentException("Script is corrupted or from an unsupported version"))
+                .let { sanitize(it) }
         } catch (e: com.google.gson.JsonSyntaxException) {
             throw IllegalArgumentException("Script file is corrupted")
         }
-        if (parsed.name.isNullOrBlank()) {
+        if (parsed.name.isBlank()) {
             throw IllegalArgumentException("Script is missing a name")
         }
         val imported = parsed.copy(
@@ -184,9 +201,34 @@ class ProfileRepository(private val context: Context) {
 
     fun getLastProfile(): Flow<TapProfile?> = context.dataStore.data.map { prefs ->
         val json = prefs[lastProfileJsonKey] ?: return@map null
-        try { gson.fromJson(json, TapProfile::class.java) }
+        try { gson.fromJson(json, TapProfile::class.java)?.let { sanitize(it) } }
         catch (_: Exception) { null }
     }
+
+    // Session history (persisted so it survives process death / restart)
+    val history: Flow<List<HistoryEntry>> = context.dataStore.data.map { prefs ->
+        val json = prefs[historyKey] ?: return@map emptyList()
+        try {
+            val type = object : TypeToken<List<HistoryEntry>>() {}.type
+            gson.fromJson<List<HistoryEntry>>(json, type) ?: emptyList()
+        } catch (_: Exception) { emptyList() }
+    }
+
+    suspend fun saveHistory(entries: List<HistoryEntry>) {
+        context.dataStore.edit { it[historyKey] = gson.toJson(entries.take(50)) }
+    }
+
+    suspend fun clearHistory() {
+        context.dataStore.edit { it.remove(historyKey) }
+    }
+
+    // Quick Controls toggle persistence
+    val bubbleEnabled: Flow<Boolean> = context.dataStore.data.map { it[bubbleEnabledKey] ?: false }
+    val volumeTriggerEnabled: Flow<Boolean> = context.dataStore.data.map { it[volumeTriggerKey] ?: false }
+    val pauseOnTouchEnabled: Flow<Boolean> = context.dataStore.data.map { it[pauseOnTouchKey] ?: false }
+    suspend fun setBubbleEnabled(v: Boolean) { context.dataStore.edit { it[bubbleEnabledKey] = v } }
+    suspend fun setVolumeTriggerEnabled(v: Boolean) { context.dataStore.edit { it[volumeTriggerKey] = v } }
+    suspend fun setPauseOnTouchEnabled(v: Boolean) { context.dataStore.edit { it[pauseOnTouchKey] = v } }
 
     val homeTipSeen: Flow<Boolean> = context.dataStore.data.map { it[homeTipSeenKey] ?: false }
     suspend fun setHomeTipSeen() { context.dataStore.edit { it[homeTipSeenKey] = true } }
@@ -198,7 +240,28 @@ class ProfileRepository(private val context: Context) {
         val json = prefs[profilesKey] ?: "[]"
         val type = object : TypeToken<MutableList<TapProfile>>() {}.type
         return try {
-            gson.fromJson<MutableList<TapProfile>>(json, type) ?: mutableListOf()
+            gson.fromJson<MutableList<TapProfile>>(json, type)?.map { sanitize(it) }?.toMutableList()
+                ?: mutableListOf()
         } catch (_: Exception) { mutableListOf() }
     }
+
+    /**
+     * Gson deserializes by reflection and bypasses Kotlin's constructor, so any
+     * non-null field absent from older stored JSON comes back as null and would
+     * crash (NPE) the first time it's dereferenced. Coalesce every nullable-in-
+     * practice field back to its default. This is the app's forward/backward
+     * compatibility guard for schema additions across versions.
+     */
+    @Suppress("USELESS_ELVIS")
+    private fun sanitize(p: TapProfile): TapProfile = p.copy(
+        name = p.name ?: "Untitled Script",
+        description = p.description ?: "",
+        category = p.category ?: "",
+        mode = p.mode ?: ClickMode.SINGLE_POINT,
+        steps = (p.steps ?: emptyList()).map { s ->
+            s.copy(action = s.action ?: ActionType.TAP)
+        },
+        rules = p.rules ?: ClickRule(),
+        antiDetection = p.antiDetection ?: AntiDetectionConfig()
+    )
 }

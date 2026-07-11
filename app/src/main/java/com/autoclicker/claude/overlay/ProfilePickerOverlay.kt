@@ -24,12 +24,20 @@ class ProfilePickerOverlay(
     private val repo = ProfileRepository(service)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var profiles: List<TapProfile> = emptyList()
+    // Set synchronously so a rapid second show() can't slip past the null guard
+    // before the async load finishes and cause a double addView (crash).
+    private var showing = false
 
     fun show() {
-        if (panelView != null) return
+        if (panelView != null || showing) return
+        showing = true
         scope.launch {
-            profiles = repo.profiles.first().sortedByDescending { it.updatedAt }
-            showPanel()
+            try {
+                profiles = repo.profiles.first().sortedByDescending { it.updatedAt }
+                showPanel()
+            } catch (_: Exception) {
+                showing = false
+            }
         }
     }
 
@@ -75,13 +83,15 @@ class ProfilePickerOverlay(
                 }
                 MotionEvent.ACTION_UP -> {
                     if (!isScrolling) {
-                        val tapIndex = view.getProfileIndexAt(event.y)
-                        if (tapIndex == -1) {
-                            dismiss() // tapped close area
-                        } else if (tapIndex in profiles.indices) {
-                            val selected = profiles[tapIndex]
-                            dismiss()
-                            onProfileSelected(selected)
+                        val tapIndex = view.hitTest(event.x, event.y)
+                        when {
+                            tapIndex == -1 -> dismiss() // close X
+                            tapIndex == -2 -> { /* title or gap — ignore */ }
+                            tapIndex in profiles.indices -> {
+                                val selected = profiles[tapIndex]
+                                dismiss()
+                                onProfileSelected(selected)
+                            }
                         }
                     }
                 }
@@ -90,13 +100,15 @@ class ProfilePickerOverlay(
         }
 
         panelView = view
-        wm.addView(view, params)
+        try { wm.addView(view, params) } catch (_: Exception) { panelView = null }
+        showing = false
     }
 
     fun dismiss() {
         scope.coroutineContext.cancelChildren()
         panelView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         panelView = null
+        showing = false
     }
 
     private inner class PanelView(context: Context) : View(context) {
@@ -116,13 +128,23 @@ class ProfilePickerOverlay(
 
         fun setScrollOffset(offset: Float) { scrollOffset = offset }
 
-        fun getProfileIndexAt(y: Float): Int {
+        /** Returns -2 = ignore (title / gap between cards), -1 = close, >=0 = card index. */
+        fun hitTest(x: Float, y: Float): Int {
             val headerH = 56f * density
-            if (y < headerH) return -1 // close area
-            val adjustedY = y + scrollOffset - headerH
+            if (y < headerH) {
+                // Only the close 'X' in the top-right dismisses; tapping the
+                // 'Profiles' title should do nothing.
+                val closeLeft = width - 48f * density
+                return if (x >= closeLeft) -1 else -2
+            }
             val cardH = 70f * density
             val gap = 10f * density
-            return (adjustedY / (cardH + gap)).toInt()
+            val adjustedY = y + scrollOffset - headerH
+            val slot = (adjustedY / (cardH + gap)).toInt()
+            // Reject taps that land in the gap between two cards.
+            val withinSlot = adjustedY - slot * (cardH + gap)
+            if (withinSlot > cardH) return -2
+            return slot
         }
 
         override fun onDraw(canvas: Canvas) {

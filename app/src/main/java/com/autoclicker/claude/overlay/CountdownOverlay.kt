@@ -30,7 +30,7 @@ class CountdownOverlay(private val service: AccessibilityService) {
         ).apply { gravity = Gravity.TOP or Gravity.START }
 
         overlayView = view
-        wm.addView(view, params)
+        try { wm.addView(view, params) } catch (_: Exception) { overlayView = null; onComplete(); return }
 
         for (i in seconds downTo 1) {
             view.setCount(i)

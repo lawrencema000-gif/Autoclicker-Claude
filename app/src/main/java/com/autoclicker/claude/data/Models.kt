@@ -179,6 +179,13 @@ data class TapProfile(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+data class HistoryEntry(
+    val profileName: String,
+    val totalTaps: Int,
+    val durationMs: Long,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 enum class RunState { IDLE, RUNNING, PAUSED }
 
 data class ExecutionStats(
