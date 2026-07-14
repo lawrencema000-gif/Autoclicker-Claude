@@ -103,7 +103,7 @@ fun HomeScreen(vm: MainViewModel) {
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            "Tap START, then tap the spot on screen you want to click. Auto Clicker will repeat it.",
+                            "Pick a mode above, then tap START. The line under the mode buttons tells you the next step.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -121,8 +121,8 @@ fun HomeScreen(vm: MainViewModel) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            ModeChip("Single Tap", Icons.Default.AdsClick, selectedMode == ClickMode.SINGLE_POINT, { vm.setSelectedMode(ClickMode.SINGLE_POINT) }, Modifier.weight(1f))
-            ModeChip("Multi Tap", Icons.Default.GridView, selectedMode == ClickMode.MULTI_POINT, { vm.setSelectedMode(ClickMode.MULTI_POINT) }, Modifier.weight(1f))
+            ModeChip("1 Spot", Icons.Default.AdsClick, selectedMode == ClickMode.SINGLE_POINT, { vm.setSelectedMode(ClickMode.SINGLE_POINT) }, Modifier.weight(1f))
+            ModeChip("Many Spots", Icons.Default.GridView, selectedMode == ClickMode.MULTI_POINT, { vm.setSelectedMode(ClickMode.MULTI_POINT) }, Modifier.weight(1f))
             ModeChip("Pattern", Icons.Default.AutoAwesome, selectedMode == ClickMode.PATTERN_MODE, { vm.setSelectedMode(ClickMode.PATTERN_MODE) }, Modifier.weight(1f))
             ModeChip("Record", Icons.Default.FiberManualRecord, selectedMode == ClickMode.RECORD_MODE, { vm.setSelectedMode(ClickMode.RECORD_MODE) }, Modifier.weight(1f))
         }
@@ -165,7 +165,37 @@ fun HomeScreen(vm: MainViewModel) {
                 ) {
                     StatItem("Taps", "${stats.totalTaps}")
                     StatItem("Time", formatElapsed(stats.elapsedMs))
-                    StatItem("Loop", "${stats.currentLoop}")
+                    StatItem("Rounds", "${stats.currentLoop}")
+                }
+            }
+        }
+
+        // "Just finished" summary card — so a run that ends doesn't just vanish
+        val justFinished by vm.justFinishedRun.collectAsState()
+        AnimatedVisibility(visible = runState == RunState.IDLE && justFinished != null) {
+            justFinished?.let { run ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.secondary)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Finished", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Text(
+                                "${run.totalTaps} taps in ${formatElapsed(run.durationMs)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                        IconButton(onClick = { vm.dismissJustFinished() }) {
+                            Icon(Icons.Default.Close, "Dismiss", tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        }
+                    }
                 }
             }
         }
@@ -304,6 +334,18 @@ private fun PatternSection(vm: MainViewModel, patternConfig: PatternConfig, cust
                 }
             }
 
+            // Plain-language purpose for the selected shape
+            val purpose = when (patternConfig.type) {
+                PatternType.CIRCLE -> "Taps evenly around a circle — good for radial buttons or dials."
+                PatternType.ZIGZAG -> "Taps back and forth in a zigzag — good for sweeping across a row."
+                PatternType.GRID -> "Taps a grid of evenly-spaced spots — good for covering an area or a keypad."
+                PatternType.SPIRAL -> "Taps in an outward spiral — good for spreading taps over a region."
+                PatternType.DIAMOND -> "Taps the four sides of a diamond around a center point."
+                PatternType.RANDOM_AREA -> "Taps random spots inside the area — different every run, looks less robotic."
+                PatternType.CUSTOM -> "Tap your own spots (like Many Spots), but saved as a reusable pattern."
+            }
+            Text(purpose, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+
             PatternPreviewCanvas(patternConfig, customPoints)
             PatternParameterControls(patternConfig) { vm.updatePatternConfig(it) }
 
@@ -351,15 +393,20 @@ private fun PatternPreviewCanvas(patternConfig: PatternConfig, customPoints: Lis
 private fun PatternParameterControls(config: PatternConfig, onConfigChange: (PatternConfig) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         when (config.type) {
-            PatternType.CIRCLE -> { SliderRow("Points", config.pointCount.toFloat(), 3f..24f, 20) { onConfigChange(config.copy(pointCount = it.toInt())) }; SliderRow("Radius", config.radius, 30f..300f) { onConfigChange(config.copy(radius = it)) } }
-            PatternType.ZIGZAG -> { SliderRow("Points", config.pointCount.toFloat(), 3f..20f, 16) { onConfigChange(config.copy(pointCount = it.toInt())) }; SliderRow("Width", config.areaWidth, 50f..500f) { onConfigChange(config.copy(areaWidth = it)) }; SliderRow("Height", config.areaHeight, 50f..500f) { onConfigChange(config.copy(areaHeight = it)) } }
-            PatternType.GRID -> { SliderRow("Rows", config.gridRows.toFloat(), 2f..8f, 5) { onConfigChange(config.copy(gridRows = it.toInt())) }; SliderRow("Cols", config.gridCols.toFloat(), 2f..8f, 5) { onConfigChange(config.copy(gridCols = it.toInt())) }; SliderRow("Space", config.gridSpacing, 20f..150f) { onConfigChange(config.copy(gridSpacing = it)) } }
-            PatternType.SPIRAL -> { SliderRow("Points", config.pointCount.toFloat(), 4f..30f, 25) { onConfigChange(config.copy(pointCount = it.toInt())) }; SliderRow("Radius", config.radius, 30f..300f) { onConfigChange(config.copy(radius = it)) }; SliderRow("Turns", config.spiralRevolutions, 1f..5f, 8) { onConfigChange(config.copy(spiralRevolutions = it)) } }
-            PatternType.DIAMOND -> { SliderRow("Points", config.pointCount.toFloat(), 4f..24f, 5) { onConfigChange(config.copy(pointCount = (it.toInt() / 4) * 4)) }; SliderRow("Radius", config.radius, 30f..300f) { onConfigChange(config.copy(radius = it)) } }
-            PatternType.RANDOM_AREA -> { SliderRow("Points", config.pointCount.toFloat(), 3f..20f, 16) { onConfigChange(config.copy(pointCount = it.toInt())) }; SliderRow("Width", config.areaWidth, 50f..500f) { onConfigChange(config.copy(areaWidth = it)) }; SliderRow("Height", config.areaHeight, 50f..500f) { onConfigChange(config.copy(areaHeight = it)) } }
+            PatternType.CIRCLE -> { SliderRow("Taps", config.pointCount.toFloat(), 3f..24f, 20) { onConfigChange(config.copy(pointCount = it.toInt())) }; SliderRow("Size", config.radius, 30f..300f) { onConfigChange(config.copy(radius = it)) } }
+            PatternType.ZIGZAG -> { SliderRow("Taps", config.pointCount.toFloat(), 3f..20f, 16) { onConfigChange(config.copy(pointCount = it.toInt())) }; SliderRow("Width", config.areaWidth, 50f..500f) { onConfigChange(config.copy(areaWidth = it)) }; SliderRow("Height", config.areaHeight, 50f..500f) { onConfigChange(config.copy(areaHeight = it)) } }
+            PatternType.GRID -> { SliderRow("Rows", config.gridRows.toFloat(), 2f..8f, 5) { onConfigChange(config.copy(gridRows = it.toInt())) }; SliderRow("Cols", config.gridCols.toFloat(), 2f..8f, 5) { onConfigChange(config.copy(gridCols = it.toInt())) }; SliderRow("Gap", config.gridSpacing, 20f..150f) { onConfigChange(config.copy(gridSpacing = it)) } }
+            PatternType.SPIRAL -> { SliderRow("Taps", config.pointCount.toFloat(), 4f..30f, 25) { onConfigChange(config.copy(pointCount = it.toInt())) }; SliderRow("Size", config.radius, 30f..300f) { onConfigChange(config.copy(radius = it)) }; SliderRow("Loops", config.spiralRevolutions, 1f..5f, 8) { onConfigChange(config.copy(spiralRevolutions = it)) }; PatternCaption("Taps = how many taps · Size = how wide · Loops = how many times it winds around") }
+            PatternType.DIAMOND -> { SliderRow("Taps", config.pointCount.toFloat(), 4f..24f, 5) { onConfigChange(config.copy(pointCount = (it.toInt() / 4) * 4)) }; SliderRow("Size", config.radius, 30f..300f) { onConfigChange(config.copy(radius = it)) }; PatternCaption("Taps rounds to multiples of 4 — one for each side of the diamond.") }
+            PatternType.RANDOM_AREA -> { SliderRow("Taps", config.pointCount.toFloat(), 3f..20f, 16) { onConfigChange(config.copy(pointCount = it.toInt())) }; SliderRow("Width", config.areaWidth, 50f..500f) { onConfigChange(config.copy(areaWidth = it)) }; SliderRow("Height", config.areaHeight, 50f..500f) { onConfigChange(config.copy(areaHeight = it)) }; PatternCaption("Spots are random inside this area — different every run.") }
             PatternType.CUSTOM -> {}
         }
     }
+}
+
+@Composable
+private fun PatternCaption(text: String) {
+    Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
 }
 
 @Composable

@@ -166,7 +166,7 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                 canvas.drawText(timeText, w / 2f, y + 10f * density, statsPaint)
                 y += 12f * density
                 val cps = if (stats.elapsedMs > 0) stats.totalTaps * 1000.0 / stats.elapsedMs else 0.0
-                val cpsText = if (cps >= 10) String.format("%.0f cps", cps) else String.format("%.1f cps", cps)
+                val cpsText = if (cps >= 10) String.format("%.0f/s", cps) else String.format("%.1f/s", cps)
                 canvas.drawText(cpsText, w / 2f, y + 10f * density, statsPaint)
                 y += 14f * density
 
@@ -219,8 +219,8 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                 val timeText = if (elapsed >= 3600) String.format("%d:%02d:%02d", elapsed / 3600, (elapsed % 3600) / 60, elapsed % 60)
                 else String.format("%d:%02d", elapsed / 60, elapsed % 60)
                 val cps = if (stats.elapsedMs > 0) stats.totalTaps * 1000.0 / stats.elapsedMs else 0.0
-                val cpsText = if (cps >= 10) String.format("%.0f cps", cps) else String.format("%.1f cps", cps)
-                canvas.drawText("$timeText  L${stats.currentLoop}  $cpsText", w / 2f, y + 10f * density, statsPaint)
+                val cpsText = if (cps >= 10) String.format("%.0f/s", cps) else String.format("%.1f/s", cps)
+                canvas.drawText("$timeText  Rnd ${stats.currentLoop}  $cpsText", w / 2f, y + 10f * density, statsPaint)
                 y += 18f * density
 
                 // Control buttons row
@@ -296,7 +296,7 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                 buttons.add(ButtonDef(pickRect, "pick", Color.parseColor("#0EA5E9")))
                 btnPaint.color = Color.parseColor("#0EA5E9")
                 canvas.drawRoundRect(pickRect, 8f * density, 8f * density, btnPaint)
-                canvas.drawText("Pick Points", pickRect.centerX(), pickRect.centerY() + 4f * density, btnTextPaint)
+                canvas.drawText("Move taps", pickRect.centerX(), pickRect.centerY() + 4f * density, btnTextPaint)
                 y += btnH + gap
 
                 // Profiles button

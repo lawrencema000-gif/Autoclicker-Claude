@@ -61,7 +61,7 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text("Applied to new scripts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        Text("These are the defaults for the next time you press START. They don't change a run that's already going.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
 
         // ===== SPEED PRESETS =====
         Text("SPEED PRESETS", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -124,11 +124,18 @@ fun SettingsScreen(
                         )
                     }
                 }
+                Text(
+                    if (speedMode == SpeedMode.INTERVAL) "Interval = the wait between taps (in milliseconds; 1000 = 1 second)."
+                    else "Rate = how many taps per second.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 30.dp, top = 2.dp)
+                )
 
                 // Interval
                 SettingRow(
                     icon = Icons.Default.Timer,
-                    label = "Interval",
+                    label = "Interval (wait between taps)",
                     value = intervalMs,
                     onValueChange = { intervalMs = it; save() },
                     unit = "ms"
@@ -384,7 +391,7 @@ fun SettingsScreen(
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Volume Button Trigger", fontWeight = FontWeight.SemiBold)
-                    Text("Vol Up = Start/Pause, Vol Down = Stop", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Vol Up = Start/Pause, Vol Down = Stop. While ON, your volume buttons control the clicker instead of changing volume.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = volumeEnabled, onCheckedChange = { CommandBus.setVolumeTriggerEnabled(it) })
             }
@@ -515,6 +522,8 @@ private fun HelpSection() {
     val faqs = listOf(
         "How do I start clicking?" to
             "Go to the Clicker tab, keep \"Single Tap\" selected, press START, then tap the exact spot on your screen you want tapped. It repeats there until you press STOP.",
+        "How do I make it tap inside a game?" to
+            "Turn on the Floating Bubble (or Volume Button Trigger) below, open your game, then long-press the bubble (or press Volume Up) to pick the spot right inside the game. The tap point can be anywhere on screen.",
         "How do I stop it?" to
             "Press STOP on the Clicker tab, tap the STOP (red) button on the little floating toolbar, or pull down your notification shade and tap Stop. The Volume Down button also stops it if you enabled the Volume trigger.",
         "It clicks somewhere else — how do I move the spot?" to

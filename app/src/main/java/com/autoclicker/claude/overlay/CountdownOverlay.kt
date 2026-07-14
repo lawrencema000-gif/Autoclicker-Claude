@@ -14,29 +14,43 @@ class CountdownOverlay(private val service: AccessibilityService) {
 
     private val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var overlayView: CountdownView? = null
+    @Volatile private var cancelled = false
 
-    suspend fun showCountdown(seconds: Int = 3, onComplete: () -> Unit) {
+    /**
+     * @param onComplete runs when the countdown finishes normally.
+     * @param onCancel   runs if the user taps the overlay to cancel before it fires.
+     */
+    @SuppressLint("ClickableViewAccessibility")
+    suspend fun showCountdown(seconds: Int = 3, onCancel: (() -> Unit)? = null, onComplete: () -> Unit) {
         if (overlayView != null) return
+        cancelled = false
 
         val view = CountdownView(service)
+        // Touchable so the user can tap anywhere to cancel before clicking begins.
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply { gravity = Gravity.TOP or Gravity.START }
+
+        view.setOnTouchListener { _, event ->
+            if (event.action == android.view.MotionEvent.ACTION_UP) cancelled = true
+            true
+        }
 
         overlayView = view
         try { wm.addView(view, params) } catch (_: Exception) { overlayView = null; onComplete(); return }
 
         for (i in seconds downTo 1) {
+            if (cancelled) { dismiss(); onCancel?.invoke(); return }
             view.setCount(i)
             delay(1000)
         }
 
+        if (cancelled) { dismiss(); onCancel?.invoke(); return }
         dismiss()
         onComplete()
     }
@@ -81,7 +95,7 @@ class CountdownOverlay(private val service: AccessibilityService) {
             val cx = width / 2f; val cy = height / 2f
             canvas.drawCircle(cx, cy, 80f * density, circlePaint)
             canvas.drawText("$count", cx, cy + 28f * density, numberPaint)
-            canvas.drawText("Starting soon...", cx, cy + 70f * density, labelPaint)
+            canvas.drawText("Starting soon…  tap anywhere to cancel", cx, cy + 70f * density, labelPaint)
         }
     }
 }

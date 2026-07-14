@@ -104,7 +104,7 @@ fun ScheduleDialog(
                     Text("Days", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        val labels = listOf("S", "M", "T", "W", "T", "F", "S")
+                        val labels = listOf("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa")
                         labels.forEachIndexed { i, label ->
                             val selected = (daysMask shr i) and 1 == 1
                             DayChip(label, selected) {
@@ -127,6 +127,13 @@ fun ScheduleDialog(
                             label = { Text("Weekends", style = MaterialTheme.typography.bodySmall) }
                         )
                     }
+
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "For scheduled runs to work, keep Auto Clicker turned on in Accessibility settings and allow it to run in the background. Timing may vary by a few minutes.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 Spacer(Modifier.height(20.dp))

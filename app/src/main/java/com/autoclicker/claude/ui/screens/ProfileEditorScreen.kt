@@ -66,8 +66,8 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
     }
     if (showRepickConfirm) {
         com.autoclicker.claude.ui.components.ConfirmDialog(
-            title = "Re-pick points?",
-            message = "This will clear all ${profile.steps.size} existing steps. You'll need to pick new ones.",
+            title = "Re-pick steps?",
+            message = "This will clear all ${profile.steps.size} existing steps. You'll tap the screen to set new ones.",
             confirmLabel = "Re-pick",
             destructive = true,
             onConfirm = { vm.rePickEditingPoints() },
@@ -172,7 +172,7 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                         OutlinedTextField(
                             value = loopCount,
                             onValueChange = { loopCount = it },
-                            label = { Text("Loops (blank = forever)") },
+                            label = { Text("Repeats (blank = forever)") },
                             modifier = Modifier.weight(1f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
@@ -192,23 +192,27 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Pattern Configuration", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                        val pc = profile.patternConfig
+                        val typeName = pc.type.name.lowercase().replaceFirstChar { it.uppercase() }.replace('_', ' ')
                         Text(
-                            "Type: ${profile.patternConfig.type.name}",
+                            "Shape: $typeName",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            "Points: ${profile.patternConfig.pointCount} | Radius: ${profile.patternConfig.radius.toInt()}px | Center: (${profile.patternConfig.centerX.toInt()}, ${profile.patternConfig.centerY.toInt()})",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (profile.patternConfig.type == com.autoclicker.claude.data.PatternType.GRID) {
-                            Text(
-                                "Grid: ${profile.patternConfig.gridRows}x${profile.patternConfig.gridCols} | Spacing: ${profile.patternConfig.gridSpacing.toInt()}px",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        // Show only the fields that matter for this shape.
+                        val detail = when (pc.type) {
+                            com.autoclicker.claude.data.PatternType.GRID ->
+                                "${pc.gridRows} × ${pc.gridCols} grid · ${pc.gridSpacing.toInt()}px apart"
+                            com.autoclicker.claude.data.PatternType.ZIGZAG,
+                            com.autoclicker.claude.data.PatternType.RANDOM_AREA ->
+                                "${pc.pointCount} taps · area ${pc.areaWidth.toInt()}×${pc.areaHeight.toInt()}px"
+                            com.autoclicker.claude.data.PatternType.SPIRAL ->
+                                "${pc.pointCount} taps · size ${pc.radius.toInt()}px · ${pc.spiralRevolutions} loops"
+                            com.autoclicker.claude.data.PatternType.CUSTOM ->
+                                "${pc.customPoints.size} custom spots"
+                            else -> "${pc.pointCount} taps · size ${pc.radius.toInt()}px"
                         }
+                        Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -235,7 +239,7 @@ fun ProfileEditorScreen(vm: MainViewModel, profile: TapProfile) {
                 ) {
                     Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Re-pick Points")
+                    Text("Re-pick steps")
                 }
             }
         }

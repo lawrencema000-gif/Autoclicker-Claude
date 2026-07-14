@@ -14,7 +14,7 @@
 
     <!-- Prominent disclosure (Accessibility Service consent) -->
     <string name="disclosure_title">Permission required: Accessibility Service</string>
-    <string name="disclosure_intro">Auto Clicker needs the Android Accessibility Service to perform automated screen taps for you. Before you continue, here is exactly what this permission will and will not be used for.</string>
+    <string name="disclosure_intro">Android only lets an app tap the screen for you through its \"Accessibility\" tools — the same system that powers screen readers. It\'s the only way an auto-clicker can work, and it\'s safe. Here is exactly what Auto Clicker will and will not do with it.</string>
     <string name="disclosure_uses_heading">Auto Clicker will use this permission ONLY to:</string>
     <string name="disclosure_use_1">• Dispatch tap, swipe, long-press, and gesture commands at screen coordinates that you choose.</string>
     <string name="disclosure_use_2">• Show overlay controls (the floating bubble, toolbar, and crosshair) on top of other apps so you can pause, resume, or stop a session at any time.</string>

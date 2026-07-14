@@ -62,17 +62,22 @@ fun StepEditDialog(
                 )
 
                 // ===== Position =====
-                Text("Position", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text("Position (pixels from top-left)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Tip: it's easier to press Back and use \"Re-pick points\" to set these by tapping the screen.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = x, onValueChange = { x = it.filter { c -> c.isDigit() } },
-                        label = { Text("X") }, modifier = Modifier.weight(1f),
+                        label = { Text("Horizontal") }, modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = y, onValueChange = { y = it.filter { c -> c.isDigit() } },
-                        label = { Text("Y") }, modifier = Modifier.weight(1f),
+                        label = { Text("Vertical") }, modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true
                     )
@@ -112,9 +117,9 @@ fun StepEditDialog(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Random delay range", style = MaterialTheme.typography.bodyMedium)
+                        Text("Random wait before this step", style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "Pick a uniformly-random delay between min and max on every tap. Overrides the global interval for this step.",
+                            "Waits a random time between the Min and Max below before this step, instead of the normal speed. Makes timing look less robotic.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -201,8 +206,8 @@ fun StepEditDialog(
 private fun ActionTypeRow(selected: ActionType, onSelect: (ActionType) -> Unit) {
     val options = listOf(
         ActionType.TAP to "Tap",
-        ActionType.DOUBLE_TAP to "2× Tap",
-        ActionType.LONG_PRESS to "Long",
+        ActionType.DOUBLE_TAP to "Double tap",
+        ActionType.LONG_PRESS to "Long press",
         ActionType.SWIPE to "Swipe",
         ActionType.PINCH_IN to "Pinch in",
         ActionType.PINCH_OUT to "Pinch out",

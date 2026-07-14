@@ -113,27 +113,30 @@ fun ProfileListScreen(
             }
         }
 
-        // Import FAB (shows spinner while importing)
+        // Import FAB — extended with a label so it doesn't read as "add new"
+        // (new scripts are created from the Clicker tab, not here).
         val isImporting by vm.isImporting.collectAsState()
-        FloatingActionButton(
+        ExtendedFloatingActionButton(
             onClick = { if (!isImporting) onImport() },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp),
-            containerColor = MaterialTheme.colorScheme.primary
-        ) {
-            if (isImporting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Icon(Icons.Default.FileDownload, contentDescription = "Import Script")
-            }
-        }
+            containerColor = MaterialTheme.colorScheme.primary,
+            icon = {
+                if (isImporting) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                }
+            },
+            text = { Text("Import") }
+        )
     }
 }
+
+private fun friendlyInterval(ms: Long): String =
+    if (ms >= 1000) "every ${if (ms % 1000L == 0L) "${ms / 1000}s" else "%.1fs".format(ms / 1000.0)}"
+    else "${ms}ms"
 
 private fun formatDays(mask: Int): String {
     if (mask == com.autoclicker.claude.data.Schedule.EVERY_DAY) return "every day"
@@ -199,7 +202,7 @@ private fun ProfileCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    "${when (profile.mode) { ClickMode.SINGLE_POINT -> "Single"; ClickMode.MULTI_POINT -> "Multi"; ClickMode.PATTERN_MODE -> "Pattern"; ClickMode.RECORD_MODE -> "Recorded" }} • ${profile.steps.size} steps • ${profile.intervalMs}ms",
+                    "${when (profile.mode) { ClickMode.SINGLE_POINT -> "1 spot"; ClickMode.MULTI_POINT -> "Many spots"; ClickMode.PATTERN_MODE -> "Pattern"; ClickMode.RECORD_MODE -> "Recorded" }} • ${profile.steps.size} steps • ${friendlyInterval(profile.intervalMs)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -213,8 +216,17 @@ private fun ProfileCard(
                 }
             }
 
-            // Play
-            IconButton(onClick = onPlay, enabled = canPlay) {
+            // Play — when disabled (service off), still respond with an explanation
+            IconButton(
+                onClick = {
+                    if (canPlay) onPlay()
+                    else android.widget.Toast.makeText(
+                        context,
+                        "Turn on Auto Clicker in Settings → Accessibility first, then you can run scripts.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            ) {
                 Icon(
                     Icons.Default.PlayArrow,
                     contentDescription = "Run",
@@ -244,7 +256,7 @@ private fun ProfileCard(
                         leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Export") },
+                        text = { Text("Export (share as a file)") },
                         onClick = { showMenu = false; onExport() },
                         leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) }
                     )

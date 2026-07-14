@@ -54,6 +54,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _history = MutableStateFlow<List<HistoryEntry>>(emptyList())
     val history: StateFlow<List<HistoryEntry>> = _history.asStateFlow()
 
+    // The most recently finished run, shown as a "Finished: N taps" card on Home
+    // until the user starts another run or dismisses it.
+    private val _justFinishedRun = MutableStateFlow<HistoryEntry?>(null)
+    val justFinishedRun: StateFlow<HistoryEntry?> = _justFinishedRun.asStateFlow()
+    fun dismissJustFinished() { _justFinishedRun.value = null }
+
     private val _isImporting = MutableStateFlow(false)
     val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
 
@@ -204,13 +210,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (prevState != RunState.IDLE && state == RunState.IDLE) {
                     val s = stats.value
                     if (s.totalTaps > 0) {
-                        val updated = (listOf(
-                            HistoryEntry(s.profileName.ifBlank { "Quick Session" }, s.totalTaps, s.elapsedMs)
-                        ) + _history.value).take(50)
+                        val entry = HistoryEntry(s.profileName.ifBlank { "Quick Session" }, s.totalTaps, s.elapsedMs)
+                        val updated = (listOf(entry) + _history.value).take(50)
                         _history.value = updated
                         repo.saveHistory(updated)
+                        _justFinishedRun.value = entry
                     }
                 }
+                if (state == RunState.RUNNING) _justFinishedRun.value = null
                 prevState = state
             }
         }

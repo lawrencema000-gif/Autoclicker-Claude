@@ -308,6 +308,7 @@ class AutoClickService : AccessibilityService() {
         lastTapX = -1f
         lastTapY = -1f
         isStopping.set(false)
+        hitSafetyCap = false
 
         val anti = profile.antiDetection
         AntiDetection.resetSession()
@@ -351,8 +352,10 @@ class AutoClickService : AccessibilityService() {
         executionJob = scope.launch {
             val myJob = coroutineContext.job
             try {
-                // 3-second countdown overlay
-                countdownOverlay?.showCountdown(3) {}
+                // 3-second countdown overlay. Tapping it cancels before any tap fires.
+                var countdownCancelled = false
+                countdownOverlay?.showCountdown(3, onCancel = { countdownCancelled = true }) {}
+                if (countdownCancelled) { stopExecution(); return@launch }
 
                 if (effectiveProfile.rules.startDelayMs > 0) {
                     delay(effectiveProfile.rules.startDelayMs)
@@ -496,6 +499,7 @@ class AutoClickService : AccessibilityService() {
                         delay(effectiveProfile.rules.pauseBetweenLoops)
                     }
                 }
+                if (hitSafetyCap) notifySafetyCap()
             } finally {
                 // Only tear down if THIS job is still the active one. A restart
                 // (RestartLastProfile / new StartProfile while running) already
@@ -556,12 +560,33 @@ class AutoClickService : AccessibilityService() {
         while (paused.get()) { delay(100) }
     }
 
+    private var hitSafetyCap = false
     private fun shouldStop(rules: ClickRule): Boolean {
         if (rules.maxTaps > 0 && tapCount >= rules.maxTaps) return true
         if (rules.maxDurationMs > 0 && (System.currentTimeMillis() - startTimeMs) >= rules.maxDurationMs) return true
         // Safety timeout: 4 hours max to prevent runaway sessions
-        if ((System.currentTimeMillis() - startTimeMs) >= 4 * 60 * 60 * 1000L) return true
+        if ((System.currentTimeMillis() - startTimeMs) >= 4 * 60 * 60 * 1000L) {
+            hitSafetyCap = true
+            return true
+        }
         return false
+    }
+
+    /** One-shot heads-up notification so a 4-hour auto-stop isn't silent. */
+    private fun notifySafetyCap() {
+        try {
+            val nm = getSystemService(android.app.NotificationManager::class.java) ?: return
+            nm.createNotificationChannel(
+                android.app.NotificationChannel("autoclicker_info", "Auto Clicker notices", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+            )
+            val n = android.app.Notification.Builder(this, "autoclicker_info")
+                .setSmallIcon(com.autoclicker.claude.R.drawable.ic_click)
+                .setContentTitle("Auto Clicker stopped after 4 hours")
+                .setContentText("It pauses after 4 hours for safety. Open the app and press START to run again.")
+                .setAutoCancel(true)
+                .build()
+            nm.notify(3001, n)
+        } catch (_: Exception) {}
     }
 
     private fun computeDelay(baseDelay: Long, rules: ClickRule): Long {

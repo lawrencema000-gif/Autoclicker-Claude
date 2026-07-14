@@ -252,14 +252,22 @@ class CrosshairOverlay(private val service: AccessibilityService) {
                 canvas.drawText("${idx + 1}", pt.x, pt.y - r - 4f * density, nPaint)
             }
 
-            // Drag-affordance hint when paused
-            if (CommandBus.runState.value == RunState.PAUSED && draggingIndex < 0 && points.isNotEmpty()) {
-                canvas.drawText(
-                    "Drag a point to move it (auto-paused)",
-                    points[0].x,
-                    (points[0].y + circleR + 18f * density).coerceAtMost(height.toFloat() - 8f * density),
-                    hintPaint
-                )
+            // Affordance hint: how to move the tap spot. Different message while
+            // running (pause first) vs paused (drag now).
+            if (draggingIndex < 0 && points.isNotEmpty()) {
+                val hint = when (CommandBus.runState.value) {
+                    RunState.PAUSED -> "Drag a point to move it, then Resume"
+                    RunState.RUNNING -> "This is where it taps · Pause to move it"
+                    else -> null
+                }
+                if (hint != null) {
+                    canvas.drawText(
+                        hint,
+                        points[0].x,
+                        (points[0].y + circleR + 18f * density).coerceAtMost(height.toFloat() - 8f * density),
+                        hintPaint
+                    )
+                }
             }
         }
     }

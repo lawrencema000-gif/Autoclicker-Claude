@@ -124,7 +124,7 @@ fun OnboardingScreen(
             )
         }
 
-        // Helpful hint when not ready
+        // Status line: red hint when not ready, green "all set" once it worked.
         if (!serviceConnected) {
             Text(
                 "Step 1 is required. The app can't click without it.",
@@ -134,7 +134,14 @@ fun OnboardingScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp)
             )
         } else {
-            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                "✓ Auto Clicker is on — you're ready to click!",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.secondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp)
+            )
         }
 
         // Get Started
