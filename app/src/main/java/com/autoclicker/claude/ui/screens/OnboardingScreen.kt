@@ -103,10 +103,10 @@ fun OnboardingScreen(
             StepCard(
                 stepNumber = 1,
                 title = "Let Auto Clicker tap your screen",
-                description = "Android needs your permission to tap, swipe, and record gestures for you. We never read screen content.",
+                description = "This opens your phone's Accessibility settings, where you turn Auto Clicker ON. It's how the app taps for you. We never read your screen.",
                 icon = Icons.Default.Accessibility,
                 completed = serviceConnected,
-                actionLabel = if (serviceConnected) "Allowed" else "Allow",
+                actionLabel = if (serviceConnected) "Allowed" else "Set up",
                 onAction = { if (!serviceConnected) onOpenAccessibility() }
             )
 
@@ -116,10 +116,10 @@ fun OnboardingScreen(
             StepCard(
                 stepNumber = 2,
                 title = "Keep Auto Clicker running (optional)",
-                description = "Disable battery optimization so Android doesn't stop clicking when the screen dims.",
+                description = "Let Auto Clicker ignore battery optimization so your phone is less likely to stop it during long sessions.",
                 icon = Icons.Default.BatteryChargingFull,
                 completed = batteryOptimized,
-                actionLabel = if (batteryOptimized) "Done" else "Keep running",
+                actionLabel = if (batteryOptimized) "Done" else "Allow",
                 onAction = { if (!batteryOptimized) onRequestBattery() }
             )
         }

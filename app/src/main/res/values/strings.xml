@@ -24,10 +24,16 @@
     <string name="disclosure_not_2">• Monitor, track, or record what you do in any other app.</string>
     <string name="disclosure_not_3">• Collect, store, or transmit personal data to any server. Everything stays on your device.</string>
     <string name="disclosure_not_4">• Auto-fill, type, or enter text on your behalf.</string>
-    <string name="disclosure_consent_label">By tapping Agree &amp; Continue, you allow Auto Clicker to be enabled in your device\'s Accessibility settings on the next screen. You can revoke this permission at any time by returning to Settings → Accessibility and turning Auto Clicker off.</string>
+    <string name="disclosure_steps_heading">What happens next (3 steps):</string>
+    <string name="disclosure_step_1">1. Tap \"Agree &amp; Continue\" below — this opens your phone\'s Accessibility settings.</string>
+    <string name="disclosure_step_2">2. Find and tap \"Auto Clicker\" in the list, then turn its switch ON yourself. Android won\'t let the app do this automatically.</string>
+    <string name="disclosure_step_3">3. Press Back to return here. You\'ll see \"Allowed\" once it worked.</string>
+    <string name="disclosure_android_warning">Heads-up: the next system screen is Android\'s own wording and will say Auto Clicker can \"observe your actions\" and have \"full control of your device.\" Every accessibility app must show that same generic message — it does not change the promises above. Auto Clicker still never reads your screen.</string>
+    <string name="disclosure_consent_label">You can turn this off any time in Settings → Accessibility → Auto Clicker.</string>
     <string name="disclosure_agree">Agree &amp; Continue</string>
     <string name="disclosure_decline">No thanks</string>
-    <string name="disclosure_declined_toast">Auto Clicker can\'t click without the Accessibility permission. Tap Allow again to review and grant it.</string>
+    <string name="disclosure_declined_toast">Auto Clicker can\'t tap for you without this permission. Tap Allow again whenever you\'re ready.</string>
+    <string name="accessibility_settings_toast">Find \"Auto Clicker\" in this list, tap it, then turn the switch ON. Press Back when done.</string>
 
     <!-- Onboarding -->
     <string name="onboarding_welcome">Welcome to Auto Clicker</string>
@@ -49,10 +55,10 @@
     <string name="mode_multi_tap">Multi Tap</string>
     <string name="mode_pattern">Pattern</string>
     <string name="mode_record">Record</string>
-    <string name="mode_hint_single">Tap START, then pick one point on screen. Clicks repeat at that spot.</string>
-    <string name="mode_hint_multi">Tap START, pick multiple points, press DONE. Clicks cycle through each point.</string>
-    <string name="mode_hint_pattern">Choose a pattern shape below. Clicks follow the pattern automatically.</string>
-    <string name="mode_hint_record">Tap START, then perform taps and swipes. Press DONE to save and replay.</string>
+    <string name="mode_hint_single">Taps ONE spot over and over. Most people want this. Tap START, then tap the spot you want tapped.</string>
+    <string name="mode_hint_multi">Taps SEVERAL different spots in turn (e.g. two buttons). Tap START, tap each spot, then press DONE.</string>
+    <string name="mode_hint_pattern">Taps in a shape (circle, grid, etc.) — useful for covering an area. Pick a shape below, then START.</string>
+    <string name="mode_hint_record">Records your real finger taps and swipes, then replays them. Tap START, do your moves, press DONE.</string>
 
     <!-- Primary action -->
     <string name="action_start">START</string>

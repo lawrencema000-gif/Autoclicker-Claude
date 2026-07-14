@@ -55,6 +55,16 @@ class PickOverlayManager(private val service: AccessibilityService) {
                     val y = event.rawY
                     val metrics = service.resources.displayMetrics
 
+                    // 0. CANCEL button hit? (always available — lets a user who
+                    //    entered pick mode by accident back out without placing a point)
+                    val cancelRect = getCancelRect(metrics.widthPixels.toFloat(), metrics.heightPixels.toFloat())
+                    if (cancelRect.contains(x, y)) {
+                        pickedPoints.clear()
+                        CommandBus.clearPickResults()
+                        dismiss()
+                        return@setOnTouchListener true
+                    }
+
                     // 1. DONE button hit?
                     if (multiPick && pickedPoints.isNotEmpty()) {
                         val btnRect = getDoneButtonRect(metrics.widthPixels.toFloat(), metrics.heightPixels.toFloat())
@@ -167,6 +177,20 @@ class PickOverlayManager(private val service: AccessibilityService) {
         )
     }
 
+    // Top-right cancel pill, clear of the status bar.
+    private fun getCancelRect(screenW: Float, screenH: Float): RectF {
+        val btnW = 96f * density
+        val btnH = 40f * density
+        val margin = 16f * density
+        val topGap = 44f * density
+        return RectF(
+            screenW - btnW - margin,
+            topGap,
+            screenW - margin,
+            topGap + btnH
+        )
+    }
+
     private inner class PickOverlayView(context: Context) : View(context) {
         private val d = context.resources.displayMetrics.density
         private val bgPaint = Paint().apply { color = Color.argb(80, 0, 0, 0) }
@@ -260,9 +284,15 @@ class PickOverlayManager(private val service: AccessibilityService) {
                 canvas.drawText("CLEAR ALL", clearRect.centerX(), clearRect.centerY() + 5f * d, btnTextPaint)
             }
 
+            // Cancel pill (top-right) — always available
+            val cancelRect = getCancelRect(width.toFloat(), height.toFloat())
+            val cancelBgPaint = Paint(btnPaint).apply { color = Color.parseColor("#334155") }
+            canvas.drawRoundRect(cancelRect, 10f * d, 10f * d, cancelBgPaint)
+            canvas.drawText("✕ Cancel", cancelRect.centerX(), cancelRect.centerY() + 5f * d, btnTextPaint)
+
             // Instruction text
-            val instrText = if (multiPick) "Tap empty area to add. Tap a number to remove it. DONE when ready."
-            else "Tap anywhere to select a point"
+            val instrText = if (multiPick) "Tap where you want each tap. Tap a number to remove it. DONE when ready."
+            else "Tap the exact spot on screen you want tapped"
             canvas.drawText(instrText, width / 2f, 50f * d, instrPaint)
         }
     }

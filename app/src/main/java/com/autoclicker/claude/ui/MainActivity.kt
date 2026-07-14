@@ -27,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.autoclicker.claude.R
 import com.autoclicker.claude.ads.AdManager
+import com.autoclicker.claude.service.AutoClickService
 import com.autoclicker.claude.data.CommandBus
 import com.autoclicker.claude.data.TapProfile
 import com.autoclicker.claude.ui.screens.*
@@ -55,11 +56,6 @@ class MainActivity : ComponentActivity() {
 
         // Initialize AdMob (App Open Ad on foreground)
         AdManager.initialize(application)
-
-        // Request notification permission on Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
 
         setContent {
             AutoClickerTheme {
@@ -112,7 +108,15 @@ class MainActivity : ComponentActivity() {
             OnboardingScreen(
                 onOpenAccessibility = { showDisclosure = true },
                 onRequestBattery = { requestBatteryOptimization() },
-                onComplete = { vm.completeOnboarding() }
+                onComplete = {
+                    // Ask for notification permission now (in context): the app has
+                    // introduced itself and the user is about to run sessions that
+                    // show a control notification.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    vm.completeOnboarding()
+                }
             )
             return
         }
@@ -185,7 +189,24 @@ class MainActivity : ComponentActivity() {
 
     private fun openAccessibilitySettings() {
         AdManager.suppressNextAppOpenAd()
-        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        // Try to deep-link straight to Auto Clicker's own accessibility page so
+        // the user doesn't have to hunt through the full services list. The
+        // details action + component extra is honored on AOSP/Pixel/Samsung;
+        // OEMs that don't support it fall back to the generic list.
+        val componentName = android.content.ComponentName(this, AutoClickService::class.java)
+        val deepLink = Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS").apply {
+            putExtra("android.intent.extra.COMPONENT_NAME", componentName.flattenToString())
+            // Some Settings builds use the fragment-args highlight mechanism instead.
+            putExtra(":settings:fragment_args_key", componentName.flattenToString())
+        }
+        val launched = try {
+            startActivity(deepLink); true
+        } catch (_: Exception) {
+            try { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); true } catch (_: Exception) { false }
+        }
+        if (launched) {
+            Toast.makeText(this, getString(R.string.accessibility_settings_toast), Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun requestBatteryOptimization() {

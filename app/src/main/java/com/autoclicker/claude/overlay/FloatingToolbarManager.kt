@@ -42,7 +42,7 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
 
         val density = service.resources.displayMetrics.density
         val widthPx = (52 * density).toInt()
-        val heightPx = (200 * density).toInt()
+        val heightPx = (248 * density).toInt()
 
         val view = ToolbarView(service).apply {
             contentDescription = "Auto Clicker toolbar. Shows tap count, elapsed time, and play, pause, stop, settings controls."
@@ -108,7 +108,7 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
             p.height = (320 * density).toInt()
         } else {
             p.width = (52 * density).toInt()
-            p.height = (200 * density).toInt()
+            p.height = (248 * density).toInt()
         }
         // Re-clamp so the newly-grown panel doesn't render off the right/bottom edge.
         val screenW = service.resources.displayMetrics.widthPixels
@@ -124,6 +124,7 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
         private val bgPaint = Paint().apply { color = Color.argb(235, 15, 23, 42); isAntiAlias = true }
         private val btnPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
         private val btnTextPaint = Paint().apply { color = Color.WHITE; textSize = 11f * density; textAlign = Paint.Align.CENTER; isAntiAlias = true; isFakeBoldText = true }
+        private val btnLabelPaint = Paint().apply { color = Color.WHITE; textSize = 7f * density; textAlign = Paint.Align.CENTER; isAntiAlias = true; isFakeBoldText = true }
         private val statsPaint = Paint().apply { color = Color.parseColor("#94A3B8"); textSize = 9f * density; textAlign = Paint.Align.CENTER; isAntiAlias = true }
         private val tapCountPaint = Paint().apply { color = Color.WHITE; textSize = 13f * density; textAlign = Paint.Align.CENTER; isAntiAlias = true; isFakeBoldText = true }
         private val dragHintPaint = Paint().apply { color = Color.argb(80, 255, 255, 255); strokeWidth = 2f * density; strokeCap = Paint.Cap.ROUND; isAntiAlias = true }
@@ -169,43 +170,45 @@ class FloatingToolbarManager(private val service: AccessibilityService) {
                 canvas.drawText(cpsText, w / 2f, y + 10f * density, statsPaint)
                 y += 14f * density
 
-                // Play / Pause / (Restart when idle)
-                val playColor: Int; val playLabel: String
-                when (runState) {
-                    RunState.PAUSED -> { playColor = Color.parseColor("#38BDF8"); playLabel = "▶" }
-                    RunState.IDLE -> { playColor = Color.parseColor("#38BDF8"); playLabel = "▶" }
-                    else -> { playColor = Color.parseColor("#34D399"); playLabel = "⏸" }
+                // Taller buttons in compact so each fits a glyph + a word label.
+                val cBtnH = 38f * density
+
+                fun drawLabeledButton(rect: RectF, glyph: String, label: String, color: Int, tag: String) {
+                    buttons.add(ButtonDef(rect, tag, color))
+                    btnPaint.color = color
+                    canvas.drawRoundRect(rect, 8f * density, 8f * density, btnPaint)
+                    canvas.drawText(glyph, rect.centerX(), rect.centerY() - 1f * density, btnTextPaint)
+                    canvas.drawText(label, rect.centerX(), rect.bottom - 5f * density, btnLabelPaint)
                 }
-                val playRect = RectF(pad, y, w - pad, y + btnH)
-                buttons.add(ButtonDef(playRect, playLabel, playColor))
-                btnPaint.color = playColor
-                canvas.drawRoundRect(playRect, 8f * density, 8f * density, btnPaint)
-                canvas.drawText(playLabel, playRect.centerX(), playRect.centerY() + 4f * density, btnTextPaint)
-                y += btnH + gap
 
-                // Stop (disabled / faded when idle, but always present)
+                // Play / Pause / (Play when idle or paused)
+                val running = runState == RunState.RUNNING
+                val playColor = if (running) Color.parseColor("#34D399") else Color.parseColor("#38BDF8")
+                val playGlyph = if (running) "⏸" else "▶"
+                val playWord = when (runState) {
+                    RunState.RUNNING -> "Pause"
+                    RunState.PAUSED -> "Resume"
+                    else -> "Play"
+                }
+                val playTag = if (running) "⏸" else "▶"
+                val playRect = RectF(pad, y, w - pad, y + cBtnH)
+                drawLabeledButton(playRect, playGlyph, playWord, playColor, playTag)
+                y += cBtnH + gap
+
+                // Stop
                 val stopColor = if (runState == RunState.IDLE) Color.parseColor("#581719") else Color.parseColor("#F87171")
-                val stopRect = RectF(pad, y, w - pad, y + btnH)
-                buttons.add(ButtonDef(stopRect, "⏹", stopColor))
-                btnPaint.color = stopColor
-                canvas.drawRoundRect(stopRect, 8f * density, 8f * density, btnPaint)
-                canvas.drawText("⏹", stopRect.centerX(), stopRect.centerY() + 4f * density, btnTextPaint)
-                y += btnH + gap
+                val stopRect = RectF(pad, y, w - pad, y + cBtnH)
+                drawLabeledButton(stopRect, "⏹", "Stop", stopColor, "⏹")
+                y += cBtnH + gap
 
-                // Close (dismiss toolbar entirely)
-                val xRect = RectF(pad, y, w - pad, y + btnH)
-                buttons.add(ButtonDef(xRect, "close", Color.parseColor("#1E293B")))
-                btnPaint.color = Color.parseColor("#1E293B")
-                canvas.drawRoundRect(xRect, 8f * density, 8f * density, btnPaint)
-                canvas.drawText("✕", xRect.centerX(), xRect.centerY() + 4f * density, btnTextPaint)
-                y += btnH + gap
+                // Close / Hide (dismiss toolbar entirely)
+                val xRect = RectF(pad, y, w - pad, y + cBtnH)
+                drawLabeledButton(xRect, "✕", "Hide", Color.parseColor("#1E293B"), "close")
+                y += cBtnH + gap
 
                 // Gear (expand)
-                val gearRect = RectF(pad, y, w - pad, y + btnH)
-                buttons.add(ButtonDef(gearRect, "⚙", Color.parseColor("#475569")))
-                btnPaint.color = Color.parseColor("#475569")
-                canvas.drawRoundRect(gearRect, 8f * density, 8f * density, btnPaint)
-                canvas.drawText("⚙", gearRect.centerX(), gearRect.centerY() + 4f * density, btnTextPaint)
+                val gearRect = RectF(pad, y, w - pad, y + cBtnH)
+                drawLabeledButton(gearRect, "⚙", "More", Color.parseColor("#475569"), "⚙")
 
             } else {
                 // EXPANDED VIEW

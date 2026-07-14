@@ -129,12 +129,22 @@ fun HomeScreen(vm: MainViewModel) {
 
         // Mode description
         val modeHint = when (selectedMode) {
-            ClickMode.SINGLE_POINT -> "Tap START, then pick one point on screen. Clicks repeat at that spot."
-            ClickMode.MULTI_POINT -> "Tap START, pick multiple points, press DONE. Clicks cycle through each point."
-            ClickMode.PATTERN_MODE -> "Choose a pattern shape below. Clicks follow the pattern automatically."
-            ClickMode.RECORD_MODE -> "Tap START, then perform taps and swipes. Press DONE to save and replay."
+            ClickMode.SINGLE_POINT -> "Taps ONE spot over and over. Most people want this. Tap START, then tap the spot you want tapped."
+            ClickMode.MULTI_POINT -> "Taps SEVERAL different spots in turn (e.g. two buttons). Tap START, tap each spot, then press DONE."
+            ClickMode.PATTERN_MODE -> "Taps in a shape (circle, grid, etc.) — useful for covering an area. Pick a shape below, then START."
+            ClickMode.RECORD_MODE -> "Records your real finger taps and swipes, then replays them. Tap START, do your moves, press DONE."
         }
         Text(modeHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        // Current speed, in plain words, so a beginner can see (and knows where to change) it
+        val defaults by vm.defaultSettings.collectAsState()
+        val speedText = remember(defaults.intervalMs) { formatSpeed(defaults.intervalMs) }
+        Text(
+            "Speed: $speedText  ·  change in Settings",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold
+        )
 
         // Pattern configuration (only in pattern mode)
         if (selectedMode == ClickMode.PATTERN_MODE) {
@@ -170,7 +180,7 @@ fun HomeScreen(vm: MainViewModel) {
                 triggerHapticError(context)
                 android.widget.Toast.makeText(
                     context,
-                    "Allow Auto Clicker to tap your screen in Settings → Accessibility first",
+                    "Auto Clicker isn't active. Turn it on in Settings → Accessibility. (If it worked before, your phone may have stopped it — see \"Keep running\" in Settings.)",
                     android.widget.Toast.LENGTH_LONG
                 ).show()
             },
@@ -403,6 +413,20 @@ private fun formatElapsed(ms: Long): String {
     val s = ms / 1000
     return if (s >= 3600) String.format("%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
     else String.format("%d:%02d", s / 60, s % 60)
+}
+
+/** Plain-language speed from an interval, e.g. "about 5 taps/sec" or "1 tap every 3s". */
+private fun formatSpeed(intervalMs: Long): String {
+    if (intervalMs <= 0) return "as fast as possible"
+    return if (intervalMs < 1000) {
+        val perSec = 1000.0 / intervalMs
+        if (perSec >= 10) "about ${perSec.toInt()} taps/sec"
+        else "about %.1f taps/sec".format(perSec)
+    } else {
+        val secs = intervalMs / 1000.0
+        if (secs == secs.toInt().toDouble()) "1 tap every ${secs.toInt()}s"
+        else "1 tap every %.1fs".format(secs)
+    }
 }
 
 private fun triggerHaptic(context: android.content.Context) {

@@ -233,7 +233,7 @@ fun SettingsScreen(
 
         if (!showAdvanced) {
             Text(
-                "Anti-detection, timing jitter, and humanization options",
+                "Make the taps look more human, so games are less likely to detect the auto-clicker. Optional — most people can leave this off.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
@@ -452,10 +452,10 @@ fun SettingsScreen(
                 Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Battery Optimization", fontWeight = FontWeight.SemiBold)
-                    Text("Disable to prevent system stopping the app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Keep running in background", fontWeight = FontWeight.SemiBold)
+                    Text("Stops your phone from pausing Auto Clicker to save battery during long sessions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                FilledTonalButton(onClick = onRequestBattery, shape = RoundedCornerShape(12.dp)) { Text("Disable") }
+                FilledTonalButton(onClick = onRequestBattery, shape = RoundedCornerShape(12.dp)) { Text("Allow") }
             }
         }
 
@@ -499,10 +499,57 @@ fun SettingsScreen(
             }
         }
 
+        // ===== HELP =====
+        Text("HELP", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        HelpSection()
+
         // Banner ad at bottom of settings
         BannerAd(modifier = Modifier.padding(top = 8.dp))
 
         Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun HelpSection() {
+    val faqs = listOf(
+        "How do I start clicking?" to
+            "Go to the Clicker tab, keep \"Single Tap\" selected, press START, then tap the exact spot on your screen you want tapped. It repeats there until you press STOP.",
+        "How do I stop it?" to
+            "Press STOP on the Clicker tab, tap the STOP (red) button on the little floating toolbar, or pull down your notification shade and tap Stop. The Volume Down button also stops it if you enabled the Volume trigger.",
+        "It clicks somewhere else — how do I move the spot?" to
+            "While it's running, tap the crosshair once to pause, then drag it to a new spot and let go. Or press STOP and start again on the new spot.",
+        "Why did it stop after a while?" to
+            "Your phone probably paused it to save battery. In Settings, tap \"Allow\" under Keep running in background, and (on Xiaomi/OPPO/Vivo/Huawei/Samsung) tap \"Open autostart settings\" and allow Auto Clicker.",
+        "How fast will it tap?" to
+            "See \"Speed\" on the Clicker tab. Change it with the Speed presets at the top of Settings, or fine-tune the interval below them.",
+        "What is a \"script\"?" to
+            "Every setup you run is saved automatically as a script in the Scripts tab, so you can re-run, rename, edit, or schedule it later."
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        faqs.forEach { (q, a) ->
+            var expanded by remember { mutableStateOf(false) }
+            Card(
+                onClick = { expanded = !expanded },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(q, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Icon(
+                            if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (expanded) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(a, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
     }
 }
 
